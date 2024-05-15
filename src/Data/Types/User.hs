@@ -21,6 +21,7 @@ import Text.Blaze (ToMarkup (toMarkup))
 import qualified Text.Blaze.Html5 as H
 import Servant (FromHttpApiData (parseQueryParam))
 import Web.FormUrlEncoded
+import Data.Html.Page
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
@@ -45,13 +46,16 @@ data User = User
   , userName :: Text
   } deriving (Eq, Ord, Show, Generic)
 
+displayUser :: User -> H.Html
+displayUser u = H.div $ mconcat
+  [ H.p $ H.toHtml $ "ID: " <> show u.userId
+  , H.p $ H.toHtml $ "Name: " <> show u.userName
+  ]
+
 instance ToMarkup User where
-  toMarkup u = H.div $ mconcat
-    [ H.p $ H.toHtml $ "ID: " <> show u.userId
-    , H.p $ H.toHtml $ "Name: " <> show u.userName
-    ]
+  toMarkup = basePage . displayUser
 instance ToMarkup [User] where
-  toMarkup = H.ul . mconcat . fmap (H.li . toMarkup)
+  toMarkup = basePage . H.ul . mconcat . fmap (H.li . displayUser)
 
 instance FromRow User where
   fromRow = User <$> field <*> field

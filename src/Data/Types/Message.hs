@@ -18,6 +18,7 @@ import Data.Aeson
 import Text.Blaze (ToMarkup, toMarkup)
 import qualified Text.Blaze.Html5 as H
 import Web.FormUrlEncoded
+import Data.Html.Page
 
 newtype MessageId = MessageId { unMessageId :: UUID }
   deriving (Eq, Ord, Show, Generic)
@@ -66,16 +67,19 @@ instance ToJSON Message where
     , "sent" .= m.messageSent
     ]
 
-instance ToMarkup [Message] where
-  toMarkup = H.ul . mconcat . fmap (H.li . toMarkup)
-instance ToMarkup Message where
-  toMarkup m = H.div $ mconcat
+displayMessage :: Message -> H.Html
+displayMessage m = H.div $ mconcat
     [ H.p $ H.toHtml $ "ID: " <> show m.messageId
     , H.p $ H.toHtml $ "From: " <> show m.messageFrom
     , H.p $ H.toHtml $ "To: " <> show m.messageTo
     , H.p $ H.toHtml $ "Body: " <> show m.messageBody
     , H.p $ H.toHtml $ "Sent: " <> show m.messageSent
     ]
+
+instance ToMarkup [Message] where
+  toMarkup = basePage . H.ul . mconcat . fmap (H.li . displayMessage)
+instance ToMarkup Message where
+  toMarkup = basePage . displayMessage
 
 -- Store the last time a user requested their messages.
 data MessageSync = MessageSync

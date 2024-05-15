@@ -55,6 +55,7 @@ library
                     , Data.Html
                     , Data.Html.Message
                     , Data.Html.Root
+                    , Data.Html.Page
                     , Server
     hs-source-dirs:   src
     default-language: GHC2021
