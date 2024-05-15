@@ -14,14 +14,14 @@ main = do
   ready <- newEmptyMVar
   let onStart = putMVar ready ()
       port = 8080
-  serverThread <- forkIO $ runServer onStart testTopAPI "test-server.db" testServer port
+  serverThread <- forkIO $ runServer onStart testTopAPI "test-server.db" testTopServer port
   takeMVar ready
 
   mgr <- H.newManager H.defaultManagerSettings
-  let baseUrl = "http://localhost:" <> show port
-      env = TestEnv mgr baseUrl
+  let url = "http://localhost:" <> show port
+      env = TestEnv mgr url
       reset = do
-        req <- H.parseRequest $ baseUrl <> "/reset"
+        req <- H.parseRequest $ url <> "/reset"
         let req' = req { H.method = H.methodPost }
         res <- H.httpNoBody req' mgr
         pure $ res.responseStatus == H.status204

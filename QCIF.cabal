@@ -88,12 +88,25 @@ test-suite QCIF-test
                     , http-client
                     , http-types
                     , containers
+                    , mtl
+                    , transformers
+                    , lens
+                    , exceptions
+                    , bytestring
+                    , aeson
+                    , servant
+                    , servant-server
+                    , servant-auth
+                    , servant-auth-server
+                    , sqlite-simple
+                    , uuid
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     default-language: GHC2021
     other-modules:    Test.Types
                     , Test.StateMachine
                     , Test.API
+                    , Test.Commands
     default-extensions: DataKinds
                       , OverloadedRecordDot
                       , OverloadedStrings

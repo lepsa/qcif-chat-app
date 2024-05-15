@@ -15,6 +15,7 @@ type SetLoginCookies a = Headers
   '[ Header "Set-Cookie" SetCookie
    , Header "Set-Cookie" SetCookie
    , Header "Location" Text
+   , Header "Id" Text
    ] a
 
 topAPI :: Proxy TopAPI

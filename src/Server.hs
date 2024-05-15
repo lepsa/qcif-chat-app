@@ -38,6 +38,8 @@ import qualified Data.Html.Login as H
 import qualified Data.Html.Register as H
 import qualified Data.Html.User ()
 import Data.Types.User (UserLogin (..))
+import qualified Data.Text as T
+import Data.Functor
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -115,18 +117,23 @@ server cookieSettings jwtSettings currentDirectory =
     loginServer = login :<|> register
     login l = do
       c <- asks conn
-      uid <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
-      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
+      user <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
+      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings user
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
-        Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
+        Just cookies -> pure
+          $ cookies
+          $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot))
+          $ addHeader (T.pack $ show user.userLoginId) ()
     register createUser = do
-      user <- U.addUser createUser
-      let userLogin = UserLogin user.userId user.userName
-      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings userLogin
+      user <- U.addUser createUser <&> \u -> UserLogin u.userId u.userName
+      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings user
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
-        Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
+        Just cookies -> pure
+          $ cookies
+          $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot))
+          $ addHeader (T.pack $ show user.userLoginId.unUserId) ()
 
 mainServer :: Authed -> ServerT MainAPI (AppM IO Env AppError)
 mainServer auth = htmlServer auth :<|> coreServer auth
