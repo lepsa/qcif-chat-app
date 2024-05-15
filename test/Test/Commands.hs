@@ -154,3 +154,12 @@ getAllMessages env = Command gen exe
       res <- liftIO $ H.httpLbs req' $ env ^. manager
       res.responseStatus === status200
       either fail pure $ eitherDecode res.responseBody
+
+getMessages :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
+getMessages = undefined
+
+postMessage :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
+postMessage = undefined
+
+getUsers :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
+getUsers = undefined

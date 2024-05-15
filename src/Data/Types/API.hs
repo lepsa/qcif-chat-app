@@ -30,14 +30,19 @@ type GetLogin = "login" :> Get '[HTML] Html
 type PostLogin = "login" :> ReqBody '[FormUrlEncoded, JSON] Login :> Verb 'POST 303 '[HTML, JSON] (SetLoginCookies ())
 type GetRegister = "register" :> Get '[HTML] Html
 type PostRegister = "register" :> ReqBody '[FormUrlEncoded, JSON] CreateUser :> Verb 'POST 303 '[JSON] (SetLoginCookies ())
+
 type LoginAPI =
-  PostLogin
-    :<|> PostRegister
+       PostLogin
+  :<|> PostRegister
 
 type MainAPI = HtmlAPI :<|> CoreAPI
 
 type GetRoot = Get '[HTML] Html
 type GetMessage = "message" :> Get '[HTML] Html
+-- Extra routes just for HTML clients.
+-- This is so that they can have forms and the like
+-- to work with, as browers don't have any knowledge
+-- of what this code does.
 type HtmlAPI =
        -- Server root, does not require auth
        GetRoot
