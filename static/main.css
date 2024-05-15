@@ -19,3 +19,19 @@ main {
 nav {
   margin: 1rem;
 }
+
+form {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 4px;
+}
+
+form label {
+  grid-column: 1;
+}
+form input {
+  grid-column: 2;
+}
+form button {
+  grid-column: 1 / -1;
+}
