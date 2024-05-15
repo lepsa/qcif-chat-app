@@ -11,13 +11,26 @@ body {
   margin: 0rem;
 }
 
-main {
+#page-div {
+  height: 100vh;
+  width: 100vw;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+}
+
+main {
+  margin: 1rem;
 }
 
 nav {
-  margin: 1rem;
+  padding: 1rem;
+  border-right: solid black 0.1rem;
+}
+
+#main-content {
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
 }
 
 form {
@@ -34,4 +47,21 @@ form input {
 }
 form button {
   grid-column: 1 / -1;
+}
+
+header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: solid black 0.1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+header p {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }

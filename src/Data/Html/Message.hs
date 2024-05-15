@@ -25,8 +25,9 @@ mkOption u = H.option
 newMessage :: CanAppM m c e => Authed -> m H.Html
 newMessage auth@(Authenticated user) = do
   users <- filter (\u -> u.userId /= user.userLoginId) <$> getUsers
-  pure $ basePage auth $
-    H.form
+  pure $ basePage auth $ mconcat
+    [ H.h3 "New Message"
+    , H.form
       ! HA.method "POST"
       ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostMessageApi)))
       ! hxBoost
@@ -43,6 +44,7 @@ newMessage auth@(Authenticated user) = do
       , H.br
       , H.input ! HA.type_ "submit" ! HA.value "Send"
       ]
+    ]
 newMessage _ = throwError_ BadAuth
 
 displayMessage :: Message -> H.Html

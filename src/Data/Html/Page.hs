@@ -17,11 +17,11 @@ basePage auth content = H.html $ mconcat
   ]
 
 pageContent :: Authed -> H.Html -> H.Html
-pageContent auth content = H.body $ mconcat
+pageContent auth content = H.body $ H.div ! HA.id "page-div" $ mconcat
   [ contentHeader auth
-  , H.main $ mconcat
+  , H.div ! HA.id "main-content" $ mconcat
     [ sideNav auth
-    , H.div ! HA.id "content" $ content
+    , H.main content
     ]
   , contentFooter
   ]
@@ -40,7 +40,11 @@ pageHead = H.head $ mconcat
 contentHeader :: Authed -> H.Html
 contentHeader auth = H.header $ mconcat
   [ H.h1 $ H.a ! HA.href "/" $ "Chat App"
-  , whenLoggedIn auth $ \u -> H.p $ H.toHtml $ "Welcome back, " <> u.userLoginName
+  , whenLoggedIn auth $ \u -> H.p $ mconcat
+    [ "Welcome back,"
+    , H.br
+    , H.toHtml u.userLoginName
+    ]
   ]
 
 contentFooter :: H.Html
