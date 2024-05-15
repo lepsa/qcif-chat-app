@@ -100,6 +100,9 @@ test-suite QCIF-test
                     , servant-auth-server
                     , sqlite-simple
                     , uuid
+                    , time
+                    , text
+                    , base64
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     default-language: GHC2021

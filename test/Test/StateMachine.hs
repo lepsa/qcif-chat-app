@@ -8,7 +8,7 @@ import qualified Hedgehog.Gen as Gen
 import qualified Data.Map as M
 
 initialState :: TestState v
-initialState = TestState M.empty M.empty
+initialState = TestState M.empty M.empty M.empty
 
 propApiTests :: TestEnv -> IO Bool -> Property
 propApiTests env reset = withTests 100 . property $ do

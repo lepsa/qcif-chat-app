@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Test.API where
 
 import Data.Types.API
@@ -11,6 +12,8 @@ import Control.Monad.Reader
 import Data.Foldable
 import Data.Types.Error
 import Database.SQLite.Simple
+import Data.Aeson
+import Data.Types.Message
 
 type TestTopAPI = TopAPI :<|> TestAPI
 
@@ -39,3 +42,16 @@ resetDb = do
     , "delete from message"
     , "delete from message_sync"
     ]
+
+instance FromJSON MessageId where
+  parseJSON v = MessageId <$> parseJSON v
+
+instance FromJSON Message where
+  parseJSON = withObject "Message" $ \o -> Message
+    <$> o .: "id"
+    <*> o .: "from"
+    <*> o .: "fromName"
+    <*> o .: "to"
+    <*> o .: "toName"
+    <*> o .: "body"
+    <*> o .: "sent"
