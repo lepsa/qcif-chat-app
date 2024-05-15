@@ -5,7 +5,7 @@ import Servant.Auth
 import Servant.Auth.Server
 import Text.Blaze.Html
 import Servant.HTML.Blaze
-import Data.Types.User (UserId, User, Login)
+import Data.Types.User (UserId, User, Login, Register, CreateUser)
 import Data.Types.User qualified as U
 import Data.Types.Message
 import Data.Types.AppM (AppM, runAppM)
@@ -37,7 +37,9 @@ type TopAPI =
     AuthLogin:> MainAPI
   :<|> LoginAPI
 
-type LoginAPI = "login" :> ReqBody '[JSON] Login :> Post '[JSON] (SetLoginCookies ())
+type LoginAPI =
+  "login" :> ReqBody '[JSON] Login :> Post '[JSON] (SetLoginCookies ())
+    :<|> "register" :> ReqBody '[JSON] CreateUser :> Post '[JSON] (SetLoginCookies ())
 
 type MainAPI = HtmlAPI :<|> JsonAPI
 
@@ -49,12 +51,20 @@ type JsonAPI =
   :<|> "users" :> Get '[JSON] [User]
 
 server :: CookieSettings -> JWTSettings -> ServerT TopAPI (AppM IO Env AppError)
-server cookieSettings jwtSettings = mainServer :<|> login
+server cookieSettings jwtSettings =
+    mainServer
+  :<|> login
+  :<|> register
   where
-    login :: ServerT LoginAPI (AppM IO Env AppError)
     login l = do
       c <- asks conn
       uid <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
+      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
+      case mApplyCookies of
+        Nothing -> throwError_ $ Other "Could not apply login cookies"
+        Just cookies -> pure $ cookies ()
+    register createUser = do
+      uid <- U.addUser createUser
       mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
