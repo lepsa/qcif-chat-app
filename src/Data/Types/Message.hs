@@ -14,6 +14,7 @@ import Data.Time
 import Data.UUID.V4 (nextRandom)
 import Database.SQLite.Simple.ToField
 import Data.Types.Error
+import Data.Aeson
 
 newtype MessageId = MessageId { unMessageId :: UUID }
   deriving (Eq, Ord, Show, Generic)
@@ -21,11 +22,17 @@ instance FromField MessageId where
   fromField f = MessageId <$> fromField f
 instance ToField MessageId where
   toField = toField . unMessageId
+instance ToJSON MessageId where
+  toJSON = toJSON . unMessageId
 
 data CreateMessage = CreateMessage
   { createMessageTo   :: UserId
   , createMessageBody :: Text
   } deriving (Eq, Ord, Show, Generic)
+instance FromJSON CreateMessage where
+  parseJSON = withObject "CreateMessage" $ \o -> CreateMessage
+    <$> o .: "to"
+    <*> o .: "body"
 
 data Message = Message
   { messageId   :: MessageId
@@ -42,6 +49,14 @@ instance FromRow Message where
     <*> field
     <*> field
     <*> field
+instance ToJSON Message where
+  toJSON m = object
+    [ "id" .= m.messageId
+    , "from" .= m.messageFrom
+    , "to" .= m.messageTo
+    , "body" .= m.messageBody
+    , "sent" .= m.messageSent
+    ]
 
 -- Store the last time a user requested their messages.
 data MessageSync = MessageSync

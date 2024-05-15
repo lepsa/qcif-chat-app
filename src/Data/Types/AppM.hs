@@ -5,6 +5,7 @@ import Control.Monad.Except
 import Control.Monad.IO.Class
 import Data.Types.Env
 import Data.Types.Error
+import Servant
 
 type AppM m c e = ReaderT c (ExceptT e m)
 
@@ -13,8 +14,9 @@ type CanAppM m c e =
   , MonadError e m
   , MonadIO m
   , HasEnv c
-  , AsAppError e AppError
-  , AsAppError e DBError
+  , AsError e AppError
+  , AsError e DBError
+  , AsError e ServerError
   )
 
 runAppM :: forall m c e a. c -> AppM m c e a -> m (Either e a)

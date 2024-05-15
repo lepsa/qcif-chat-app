@@ -1,18 +1,21 @@
 module Data.Types.Error where
+
 import Control.Monad.Except
+import Servant (ServerError)
 
 data AppError
-  = AppError
+  = BadAuth
   | DB DBError
-  deriving (Eq, Ord, Show)
+  | Servant ServerError
+  deriving (Eq, Show)
 
-class AsAppError e a where
-  fromAppError :: a -> e
-  toAppError :: e -> Maybe a
+class AsError e a where
+  fromError :: a -> e
+  toError :: e -> Maybe a
 
-instance AsAppError e e where
-  fromAppError = id
-  toAppError = pure
+instance AsError e e where
+  fromError = id
+  toError = pure
 
 data DBError
   = NotFound
@@ -21,15 +24,20 @@ data DBError
   | Other String
   deriving (Eq, Ord, Show)
 
-instance AsAppError AppError DBError where
-  fromAppError = fromAppError . DB
-  toAppError (DB e) = pure e
-  toAppError _ = Nothing
+instance AsError AppError DBError where
+  fromError = fromError . DB
+  toError (DB e) = pure e
+  toError _ = Nothing
 
-throwError_ :: (MonadError e m, AsAppError e e') => e' -> m a
-throwError_ = throwError . fromAppError
+instance AsError AppError ServerError where
+  fromError = fromError . Servant
+  toError (Servant e) = pure e
+  toError _ = Nothing
 
-singleResult :: (AsAppError e DBError, MonadError e m) => [a] -> m a
+throwError_ :: (MonadError e m, AsError e e') => e' -> m a
+throwError_ = throwError . fromError
+
+singleResult :: (AsError e DBError, MonadError e m) => [a] -> m a
 singleResult [] = throwError_ NotFound
 singleResult [a] = pure a
 singleResult _ = throwError_ TooManyResults
