@@ -20,26 +20,38 @@ type Authed = AuthResult UserId
 type SetLoginCookies a = Headers
   '[ Header "Set-Cookie" SetCookie
    , Header "Set-Cookie" SetCookie
+   , Header "Location" Text
    ] a
 
 topAPI :: Proxy TopAPI
 topAPI = Proxy
 
 type TopAPI =
-    AuthLogin:> MainAPI
+    AuthLogin :> MainAPI
   :<|> LoginAPI
+  :<|> "static" :> Raw
 
+type GetLogin = "login" :> Get '[HTML] Html
+type PostLogin = "login" :> ReqBody '[FormUrlEncoded, JSON] Login :> Verb 'POST 303 '[HTML, JSON] (SetLoginCookies ())
+type GetRegister = "register" :> Get '[HTML] Html
+type PostRegister = "register" :> ReqBody '[FormUrlEncoded, JSON] CreateUser :> Verb 'POST 303 '[JSON] (SetLoginCookies ())
 type LoginAPI =
-  "login" :> Get '[HTML] Html
-    :<|> "login" :> ReqBody '[FormUrlEncoded, JSON] Login :> Post '[HTML, JSON] (SetLoginCookies ())
-    :<|> "register" :> ReqBody '[JSON] CreateUser :> Post '[JSON] (SetLoginCookies ())
+  PostLogin
+    :<|> PostRegister
 
 type MainAPI = HtmlAPI :<|> CoreAPI
 
+type GetRoot = Get '[HTML] Html
+type GetMessage = "message" :> Get '[HTML] Html
 type HtmlAPI =
-  -- Server root, does not require auth
-    Get '[HTML] Html
-  :<|> "message" :> Get '[HTML] Html
+       -- Server root, does not require auth
+       GetRoot
+  :<|> GetLogin
+  :<|> GetRegister
+       -- Form to send a new message, requires auth
+  :<|> GetMessage
+
+-- All of CoreAPI requires auth
 type CoreAPI = 
        GetMessagesApi
   :<|> GetAllMessagesApi

@@ -32,6 +32,10 @@ import Text.Blaze ()
 import Control.Monad.Trans.Except
 import Data.Html.Root
 import Data.Html.Message
+import System.Directory
+import System.FilePath
+import qualified Data.Html.Login as H
+import qualified Data.Html.Register as H
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -41,12 +45,13 @@ runServer
   :: (HasServer (api :: Type) '[BasicAuthCfg', CookieSettings, JWTSettings])
   => IO ()
   -> Proxy api
-  -> (CookieSettings -> JWTSettings -> ServerT api (AppM IO Env AppError))
+  -> (CookieSettings -> JWTSettings -> FilePath -> ServerT api (AppM IO Env AppError))
   -> Port
   -> IO ()
 runServer onStartup api serverM port = do
   c <- open dbPath
   tz <- getCurrentTimeZone
+  currentDirectory <- getCurrentDirectory
   let conf = Env c tz
   either dbErr pure <=< runAppM @_ @_ @AppError conf $ do
     initDb
@@ -71,7 +76,7 @@ runServer onStartup api serverM port = do
       hoistServerWithContext api
         (Proxy @'[BasicAuthCfg', CookieSettings, JWTSettings])
         (runToHandler conf) $
-        serverM cookieSettings jwtSettings
+        serverM cookieSettings jwtSettings currentDirectory
   where
     dbPath = "chat-server.db"
     dbErr e = error $ "An error occurred while setting up the database: " <> show e
@@ -99,33 +104,32 @@ getJwtKey conf = do
   where
     c = conn conf
 
-server :: CookieSettings -> JWTSettings -> ServerT TopAPI (AppM IO Env AppError)
-server cookieSettings jwtSettings =
+server :: CookieSettings -> JWTSettings -> FilePath -> ServerT TopAPI (AppM IO Env AppError)
+server cookieSettings jwtSettings currentDirectory =
     mainServer
-  :<|> loginPage
-  :<|> login
-  :<|> register
+      :<|> loginServer
+      :<|> serveDirectoryWebApp (currentDirectory </> "static")
   where
-    loginPage = pure mempty
+    loginServer = login :<|> register
     login l = do
       c <- asks conn
       uid <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
       mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
-        Just cookies -> pure $ cookies ()
+        Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
     register createUser = do
       uid <- U.addUser createUser
       mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
-        Just cookies -> pure $ cookies ()
+        Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
 
 mainServer :: Authed -> ServerT MainAPI (AppM IO Env AppError)
 mainServer auth = htmlServer auth :<|> coreServer auth
 
 htmlServer :: Authed -> ServerT HtmlAPI (AppM IO Env AppError)
-htmlServer auth = root auth :<|> newMessage auth
+htmlServer auth = root auth:<|> H.login auth :<|> H.register auth :<|> newMessage auth 
 
 coreServer :: Authed -> ServerT CoreAPI (AppM IO Env AppError)
 coreServer (Authenticated uid) =

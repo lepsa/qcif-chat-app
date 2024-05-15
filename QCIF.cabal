@@ -41,6 +41,8 @@ library
                     , jose
                     , bytestring
                     , http-api-data
+                    , filepath
+                    , directory
     exposed-modules:  Data.Types
                     , Data.Types.API
                     , Data.Types.User
@@ -54,8 +56,11 @@ library
                     , Data.DB.Schema
                     , Data.Html
                     , Data.Html.Message
+                    , Data.Html.Login
                     , Data.Html.Root
+                    , Data.Html.Register
                     , Data.Html.Page
+                    , Data.Html.Util
                     , Server
     hs-source-dirs:   src
     default-language: GHC2021

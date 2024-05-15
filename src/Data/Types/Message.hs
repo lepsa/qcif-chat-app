@@ -77,7 +77,10 @@ displayMessage m = H.div $ mconcat
     ]
 
 instance ToMarkup [Message] where
-  toMarkup = basePage . H.ul . mconcat . fmap (H.li . displayMessage)
+  toMarkup l = basePage $ mconcat
+    [ H.p "Your new messages:"
+    , H.ul . mconcat $ (H.li . displayMessage) <$> l
+    ]
 instance ToMarkup Message where
   toMarkup = basePage . displayMessage
 

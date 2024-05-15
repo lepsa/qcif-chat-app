@@ -72,12 +72,18 @@ instance FromJSON User where
     <*> o .: "name"
 
 data CreateUser = CreateUser
-  { createUserName :: Text
+  { createUserUser :: Text
   , createUserPassword :: Text
   } deriving (Eq, Ord, Generic)
+
+instance FromForm CreateUser where
+  fromForm f = CreateUser
+    <$> parseUnique "user" f
+    <*> parseUnique "password" f
+
 instance FromJSON CreateUser where
   parseJSON = withObject "CreateUser" $ \o -> CreateUser
-    <$> o .: "name"
+    <$> o .: "user"
     <*> o .: "password"
 
 data Login = Login
@@ -103,7 +109,7 @@ addUser :: CanAppM m c e => CreateUser -> m UserId
 addUser create = do
   c <- asks conn
   uid <- UserId <$> liftIO nextRandom
-  liftIO $ execute c "insert into user (id, name) values (?, ?)" (uid, create.createUserName)
+  liftIO $ execute c "insert into user (id, name) values (?, ?)" (uid, create.createUserUser)
   hash <- hashPassword $ mkPassword create.createUserPassword
   liftIO $ execute c "insert into user_pass(id, hash) values (?, ?)" (uid, hash)
   pure uid
