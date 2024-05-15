@@ -13,6 +13,7 @@ instance HasEnv Env where
 class HasEnv c where
   {-# MINIMAL (env | conn, timeZone) #-}
   env :: c -> Env
+  env c = Env (conn c) (timeZone c)
   conn :: c -> Connection
   conn = envConn . env
   timeZone :: c -> TimeZone
