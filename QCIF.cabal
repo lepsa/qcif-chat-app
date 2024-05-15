@@ -41,7 +41,11 @@ library
     exposed-modules:  Data.Types
                     , Data.Types.API
                     , Data.Types.User
+                    , Data.Types.AppM
+                    , Data.Types.Error
+                    , Data.Types.Env
                     , Data.DB
+                    , Data.DB.Schema
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: DataKinds
