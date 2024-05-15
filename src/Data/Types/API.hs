@@ -7,6 +7,7 @@ import Data.Text
 import Text.Blaze.Html
 import Servant.HTML.Blaze
 import Data.Types.User
+import Data.Types.Message
 
 -- All of the auth types we want to support.
 -- Any of these can be used on any route.
@@ -23,5 +24,10 @@ type TopAPI = Auth Auths UserId :> API
 type API = HtmlAPI :<|> JsonAPI
 
 type HtmlAPI = Get '[HTML] Html
-type JsonAPI = Get '[JSON] ()
-
+type JsonAPI = 
+       -- Messages since the last request
+       "messages" :> Get '[JSON] [Message]
+       -- All messages. Useful for history and re-syncing a client
+  :<|> "messages" :> "all" :> Get '[JSON] [Message]
+  :<|> "message" :> Capture "message-id" MessageId :> Get '[Message] Message
+  :<|> "message" :> ReqBody '[JSON] CreateMessage :> PostNoContent
