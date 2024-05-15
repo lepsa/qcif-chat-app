@@ -5,7 +5,7 @@ import Servant.Auth
 import Servant.Auth.Server
 import Text.Blaze.Html
 import Servant.HTML.Blaze
-import Data.Types.User (UserId, User, Login, Register, CreateUser)
+import Data.Types.User (UserId, User, Login, CreateUser)
 import Data.Types.User qualified as U
 import Data.Types.Message
 import Data.Types.AppM (AppM, runAppM)
