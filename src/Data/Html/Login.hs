@@ -11,8 +11,9 @@ import Data.Types.AppM
 import Data.Types.Auth
 
 login :: CanAppM m c e => Authed -> m H.Html
-login auth = pure $ basePage auth $
-  H.form
+login auth = pure $ basePage auth $ mconcat
+  [ H.h3 "Login"
+  , H.form
     ! HA.method "POST"
     ! HA.action (textValue $ linkText (Proxy @PostLogin))
     $ mconcat
@@ -24,3 +25,4 @@ login auth = pure $ basePage auth $
     , H.br
     , H.input ! HA.type_ "submit" ! HA.value "Send"
     ]
+  ]

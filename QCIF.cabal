@@ -68,7 +68,6 @@ library
     default-extensions: DataKinds
                       , OverloadedRecordDot
                       , OverloadedStrings
-                      , DuplicateRecordFields
 
 executable QCIF
     import:           warnings

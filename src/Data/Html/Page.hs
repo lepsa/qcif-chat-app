@@ -8,6 +8,7 @@ import Data.Types.API
 import Servant
 import Data.Html.Util
 import Data.Types.Auth
+import Data.Types.User
 
 basePage :: Authed -> H.Html -> H.Html
 basePage auth content = H.html $ mconcat
@@ -17,7 +18,7 @@ basePage auth content = H.html $ mconcat
 
 pageContent :: Authed -> H.Html -> H.Html
 pageContent auth content = H.body $ mconcat
-  [ contentHeader
+  [ contentHeader auth
   , H.main $ mconcat
     [ sideNav auth
     , H.div ! HA.id "content" $ content
@@ -36,9 +37,11 @@ pageHead = H.head $ mconcat
     H.title $ H.toHtml siteTitle
   ]
 
-contentHeader :: H.Html
-contentHeader = H.header
-  $ H.h1 $ H.a ! HA.href "/" $ "Chat App"
+contentHeader :: Authed -> H.Html
+contentHeader auth = H.header $ mconcat
+  [ H.h1 $ H.a ! HA.href "/" $ "Chat App"
+  , whenLoggedIn auth $ \u -> H.p $ H.toHtml $ "Welcome back, " <> u.userLoginName
+  ]
 
 contentFooter :: H.Html
 contentFooter = H.footer mempty

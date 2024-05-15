@@ -22,6 +22,22 @@ import Web.FormUrlEncoded
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
+data UserLogin = UserLogin
+  { userLoginId :: UserId
+  , userLoginName :: Text
+  } deriving (Eq, Ord, Show, Generic)
+instance ToJSON UserLogin where
+  toJSON u = object
+    [ ("id" .= u.userLoginId)
+    , ("name" .= u.userLoginName)
+    ]
+instance FromJSON UserLogin where
+  parseJSON = withObject "UserLogin" $ \o -> UserLogin
+    <$> o .: "id"
+    <*> o .: "name"
+instance ToJWT UserLogin
+instance FromJWT UserLogin
+
 newtype UserId = UserId { unUserId :: UUID }
   deriving (Eq, Ord, Show, Generic)
 instance FromHttpApiData UserId where
@@ -31,8 +47,6 @@ instance FromField UserId where
   fromField f = UserId <$> fromField f
 instance ToField UserId where
   toField = toField . unUserId
-instance ToJWT UserId
-instance FromJWT UserId
 instance ToJSON UserId where
   toJSON = toJSON . unUserId
 instance FromJSON UserId where
@@ -91,14 +105,14 @@ getUser uid = do
   c <- asks conn
   singleResult <=< liftIO $ query c "select id, name from user where id = ?" (Only uid)
 
-addUser :: CanAppM m c e => CreateUser -> m UserId
+addUser :: CanAppM m c e => CreateUser -> m User
 addUser create = do
   c <- asks conn
   uid <- UserId <$> liftIO nextRandom
   liftIO $ execute c "insert into user (id, name) values (?, ?)" (uid, create.createUserUser)
   hash <- hashPassword $ mkPassword create.createUserPassword
   liftIO $ execute c "insert into user_pass(id, hash) values (?, ?)" (uid, hash)
-  pure uid
+  pure $ User uid create.createUserUser
 
 getUsers :: CanAppM m c e => m [User]
 getUsers = do

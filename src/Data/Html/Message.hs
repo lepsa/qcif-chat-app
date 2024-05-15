@@ -4,7 +4,6 @@ module Data.Html.Message where
 import Data.Types.API
 import Data.Types.AppM
 import qualified Text.Blaze.Html as H
-import Servant.Auth
 import Data.Types.User
 import Servant
 import qualified Text.Blaze.Html5 as H
@@ -16,6 +15,7 @@ import Data.Types.Error
 import Data.Html.Util
 import Data.Types.Message
 import Data.Types.Auth
+import Data.List
 
 mkOption :: User -> H.Html
 mkOption u = H.option
@@ -23,12 +23,12 @@ mkOption u = H.option
   $ H.toHtml u.userName
 
 newMessage :: CanAppM m c e => Authed -> m H.Html
-newMessage auth@(Authenticated userId) = do
-  users <- filter (\u -> u.userId /= userId) <$> getUsers
+newMessage auth@(Authenticated user) = do
+  users <- filter (\u -> u.userId /= user.userLoginId) <$> getUsers
   pure $ basePage auth $
     H.form
       ! HA.method "POST"
-      ! HA.action (textValue $ linkText (Proxy @(Auth Auths UserId :> PostMessageApi)))
+      ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostMessageApi)))
       ! hxBoost
       ! hxOn "::config-request" "setXsrfHeader(event)"
       ! hxTarget "this"
@@ -36,7 +36,7 @@ newMessage auth@(Authenticated userId) = do
       $ mconcat
       [ H.label ! HA.for "to" $ "To"
       , H.select ! HA.name "to" $ mconcat $
-        mkOption <$> users
+        mkOption <$> sortBy (\a b -> compare a.userName b.userName) users
       , H.br
       , H.label ! HA.for "body" $ "Body"
       , H.input ! HA.name "body" ! HA.type_ "text"

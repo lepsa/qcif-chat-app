@@ -7,8 +7,8 @@ import Servant.Auth.Server
 import Text.Blaze
 import Data.Types.Auth
 
-whenLoggedIn :: Authed -> (UserId -> H.Html) -> H.Html
-whenLoggedIn (Authenticated userId) f = f userId
+whenLoggedIn :: Authed -> (UserLogin -> H.Html) -> H.Html
+whenLoggedIn (Authenticated u) f = f u
 whenLoggedIn _ _ = mempty
 
 hxBoost :: H.Attribute

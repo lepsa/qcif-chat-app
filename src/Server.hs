@@ -37,6 +37,7 @@ import System.FilePath
 import qualified Data.Html.Login as H
 import qualified Data.Html.Register as H
 import qualified Data.Html.User ()
+import Data.Types.User (UserLogin (..))
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -120,8 +121,9 @@ server cookieSettings jwtSettings currentDirectory =
         Nothing -> throwError_ $ Other "Could not apply login cookies"
         Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
     register createUser = do
-      uid <- U.addUser createUser
-      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
+      user <- U.addUser createUser
+      let userLogin = UserLogin user.userId user.userName
+      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings userLogin
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
         Just cookies -> pure $ cookies $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot)) ()
@@ -133,7 +135,7 @@ htmlServer :: Authed -> ServerT HtmlAPI (AppM IO Env AppError)
 htmlServer auth = root auth:<|> H.login auth :<|> H.register auth :<|> newMessage auth 
 
 coreServer :: Authed -> ServerT CoreAPI (AppM IO Env AppError)
-coreServer a@(Authenticated uid) =
+coreServer a@(Authenticated user) =
        getMessages
   :<|> getAllMessages
   :<|> postMessage
@@ -141,9 +143,9 @@ coreServer a@(Authenticated uid) =
   where
     getMessages = do
       t <- liftIO getCurrentTime
-      AuthedValue a <$> getSyncedMessages t uid
-    getAllMessages = AuthedValue a . AllMessages <$> getAllMessagesForUser uid
-    postMessage msg = MessagePosted <$ writeMessage uid msg
+      AuthedValue a <$> getSyncedMessages t user.userLoginId
+    getAllMessages = AuthedValue a . AllMessages <$> getAllMessagesForUser user.userLoginId
+    postMessage msg = MessagePosted <$ writeMessage user.userLoginId msg
     getUsers = AuthedValue a <$> U.getUsers
 coreServer _ = hoistServer (Proxy @CoreAPI) serverNat $ throwAll err401
 

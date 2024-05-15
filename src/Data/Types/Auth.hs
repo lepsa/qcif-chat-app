@@ -17,7 +17,7 @@ import Data.Aeson
 newtype BasicAuthCfg' = BasicAuthCfg' Connection
 type instance BasicAuthCfg = BasicAuthCfg'
 
-instance FromBasicAuthData UserId where
+instance FromBasicAuthData UserLogin where
   fromBasicAuthData (BasicAuthData user pass) (BasicAuthCfg' conn) = do
     either pure (pure . Authenticated) <=< runExceptT $ do
       -- Decode the user into a friendlier type
@@ -26,19 +26,19 @@ instance FromBasicAuthData UserId where
       password <- either (const $ throwError BadPassword) pure (decodeUtf8' pass)
       checkUserPassword conn name password
 
-checkUserPassword :: MonadIO m => Connection -> Text -> Text -> ExceptT (AuthResult UserId) m UserId
+checkUserPassword :: MonadIO m => Connection -> Text -> Text -> ExceptT (AuthResult UserLogin) m UserLogin
 checkUserPassword c name pass = do
   u :: User <- singleResult <=< liftIO $ query c "select id, name from user where name = ?" (Only name)
   hash <- singleResult <=< liftIO $ query c "select hash from user_pass where id = ?" (Only u.userId)
   case checkPassword (mkPassword pass) hash of
     PasswordCheckFail -> throwError BadPassword
-    PasswordCheckSuccess -> pure u.userId
+    PasswordCheckSuccess -> pure $ UserLogin u.userId u.userName
 
 -- All of the auth types we want to support.
 -- Any of these can be used on any route.
 type Auths = '[BasicAuth, Cookie, JWT]
-type AuthLogin = Auth Auths UserId
-type Authed = AuthResult UserId
+type AuthLogin = Auth Auths UserLogin
+type Authed = AuthResult UserLogin
 
 data AuthedValue a = AuthedValue
   { auth :: Authed

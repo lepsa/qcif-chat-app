@@ -10,15 +10,18 @@ import Data.Data
 import Data.Types.Auth
 
 register :: CanAppM m c e => Authed -> m H.Html
-register auth = pure $ basePage auth $ H.form
-  ! HA.method "POST"
-  ! HA.action (textValue $ linkText (Proxy @PostRegister))
-  $ mconcat
-  [ H.label ! HA.for "user" $ "Username"
-  , H.input ! HA.name "user" ! HA.type_ "text"
-  , H.br
-  , H.label ! HA.for "password" $ "password"
-  , H.input ! HA.name "password" ! HA.type_ "password"
-  , H.br
-  , H.input ! HA.type_ "submit" ! HA.value "Send"
+register auth = pure $ basePage auth $ mconcat
+  [ H.h3 "Register a New User"
+  , H.form
+    ! HA.method "POST"
+    ! HA.action (textValue $ linkText (Proxy @PostRegister))
+    $ mconcat
+    [ H.label ! HA.for "user" $ "Username"
+    , H.input ! HA.name "user" ! HA.type_ "text"
+    , H.br
+    , H.label ! HA.for "password" $ "password"
+    , H.input ! HA.name "password" ! HA.type_ "password"
+    , H.br
+    , H.input ! HA.type_ "submit" ! HA.value "Send"
+    ]
   ]
