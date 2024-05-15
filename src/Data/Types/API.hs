@@ -1,20 +1,14 @@
 module Data.Types.API where
 
 import Servant hiding (BasicAuth)
-import Servant.Auth
 import Servant.Auth.Server
 import Text.Blaze.Html
 import Servant.HTML.Blaze
-import Data.Types.User (UserId, User, Login, CreateUser)
-import Data.Types.Message
+import Data.Types.User (User, Login, CreateUser)
 import Text.Blaze ()
 import Data.Text
-
--- All of the auth types we want to support.
--- Any of these can be used on any route.
-type Auths = '[BasicAuth, Cookie, JWT]
-type AuthLogin = Auth Auths UserId
-type Authed = AuthResult UserId
+import Data.Types.Message
+import Data.Types.Auth
 
 -- Set-Cookie is here twice, as both JWT and XSRF cookies are sent.
 type SetLoginCookies a = Headers
@@ -58,10 +52,10 @@ type CoreAPI =
   :<|> PostMessageApi
   :<|> GetUsersApi
 -- Break out route types so they are cleaner to use when building internal links.
-type GetMessagesApi    = "messages" :>                                                  Get  '[HTML, JSON] [Message]
-type GetAllMessagesApi = "messages" :> "all"                                         :> Get  '[HTML, JSON] [Message]
-type PostMessageApi    = "message"  :> ReqBody '[FormUrlEncoded, JSON] CreateMessage :> Post '[HTML, JSON] ()
-type GetUsersApi       = "users"    :>                                                  Get  '[HTML, JSON] [User]
+type GetMessagesApi    = "messages" :>                                                  Get  '[HTML, JSON] (AuthedValue [Message])
+type GetAllMessagesApi = "messages" :> "all"                                         :> Get  '[HTML, JSON] (AuthedValue AllMessages)
+type PostMessageApi    = "message"  :> ReqBody '[FormUrlEncoded, JSON] CreateMessage :> Post '[HTML, JSON] MessagePosted
+type GetUsersApi       = "users"    :>                                                  Get  '[HTML, JSON] (AuthedValue [User])
 
 -- | Helper function when generating typesafe internal API links.
 linkText ::

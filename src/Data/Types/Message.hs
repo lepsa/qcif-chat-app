@@ -15,10 +15,9 @@ import Data.UUID.V4 (nextRandom)
 import Database.SQLite.Simple.ToField
 import Data.Types.Error
 import Data.Aeson
-import Text.Blaze (ToMarkup, toMarkup)
-import qualified Text.Blaze.Html5 as H
 import Web.FormUrlEncoded
-import Data.Html.Page
+import Data.Aeson.Types (emptyObject)
+import Data.Types.Auth
 
 newtype MessageId = MessageId { unMessageId :: UUID }
   deriving (Eq, Ord, Show, Generic)
@@ -43,10 +42,22 @@ instance FromForm CreateMessage where
     <$> parseUnique "to" f
     <*> parseUnique "body" f
 
+newtype AllMessages = AllMessages
+  { allMessages :: [Message]
+  }
+instance ToJSON AllMessages where
+  toJSON (AllMessages l) = toJSON l
+
+data AuthedMessage = AuthedMessage
+  { auth :: Authed
+  , message :: Message
+  }
+instance ToJSON AuthedMessage where
+  toJSON m = toJSON m.message
+
 data Message = Message
   { messageId   :: MessageId
   , messageFrom :: UserId
-  -- TODO: Can this be made into a NonEmpty so we can do group messaging?
   , messageTo   :: UserId
   , messageBody :: Text
   , messageSent :: UTCTime
@@ -67,25 +78,11 @@ instance ToJSON Message where
     , "sent" .= m.messageSent
     ]
 
-displayMessage :: Message -> H.Html
-displayMessage m = H.div $ mconcat
-    [ H.p $ H.toHtml $ "ID: " <> show m.messageId
-    , H.p $ H.toHtml $ "From: " <> show m.messageFrom
-    , H.p $ H.toHtml $ "To: " <> show m.messageTo
-    , H.p $ H.toHtml $ "Body: " <> show m.messageBody
-    , H.p $ H.toHtml $ "Sent: " <> show m.messageSent
-    ]
+data MessagePosted = MessagePosted
+  deriving (Eq, Ord, Show)
 
-instance ToMarkup [Message] where
-  toMarkup l = basePage $ mconcat
-    [ H.h3 "Messages"
-    , if null l
-      then H.p "No new messages"
-      else H.ul . mconcat $ (H.li . displayMessage) <$> l
-    ]
-
-instance ToMarkup Message where
-  toMarkup = basePage . displayMessage
+instance ToJSON MessagePosted where
+  toJSON _ = emptyObject
 
 -- Store the last time a user requested their messages.
 data MessageSync = MessageSync
@@ -108,7 +105,7 @@ getSyncedMessages t uid = do
 setMessageSync :: CanAppM m c e => UTCTime -> UserId -> m ()
 setMessageSync t uid = do
   c <- asks conn
-  liftIO $ execute c "update message_sync set time = ? where user = ?" (t, uid)
+  liftIO $ execute c "insert into message_sync (time, user) values (?, ?) on conflict do update set time = ?" (t, uid, t)
 
 getMessageSync :: CanAppM m c e => UserId -> m (Maybe MessageSync)
 getMessageSync uid = do

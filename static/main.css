@@ -1,0 +1,21 @@
+html {
+  font-size: 100%;
+  font-family: sans;
+}
+
+select, textarea, input, button {
+  font: inherit;
+}
+
+body {
+  margin: 0rem;
+}
+
+main {
+  display: flex;
+  flex-direction: row;
+}
+
+nav {
+  margin: 1rem;
+}

@@ -36,6 +36,7 @@ import System.Directory
 import System.FilePath
 import qualified Data.Html.Login as H
 import qualified Data.Html.Register as H
+import qualified Data.Html.User ()
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -132,7 +133,7 @@ htmlServer :: Authed -> ServerT HtmlAPI (AppM IO Env AppError)
 htmlServer auth = root auth:<|> H.login auth :<|> H.register auth :<|> newMessage auth 
 
 coreServer :: Authed -> ServerT CoreAPI (AppM IO Env AppError)
-coreServer (Authenticated uid) =
+coreServer a@(Authenticated uid) =
        getMessages
   :<|> getAllMessages
   :<|> postMessage
@@ -140,10 +141,10 @@ coreServer (Authenticated uid) =
   where
     getMessages = do
       t <- liftIO getCurrentTime
-      getSyncedMessages t uid
-    getAllMessages = getAllMessagesForUser uid
-    postMessage msg = void $ writeMessage uid msg
-    getUsers = U.getUsers
+      AuthedValue a <$> getSyncedMessages t uid
+    getAllMessages = AuthedValue a . AllMessages <$> getAllMessagesForUser uid
+    postMessage msg = MessagePosted <$ writeMessage uid msg
+    getUsers = AuthedValue a <$> U.getUsers
 coreServer _ = hoistServer (Proxy @CoreAPI) serverNat $ throwAll err401
 
 serverNat :: AsError e' e => AppM IO Env e a -> AppM IO Env e' a

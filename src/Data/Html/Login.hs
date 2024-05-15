@@ -8,9 +8,10 @@ import qualified Text.Blaze.Html5.Attributes as HA
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html
 import Data.Types.AppM
+import Data.Types.Auth
 
 login :: CanAppM m c e => Authed -> m H.Html
-login _auth = pure $ basePage $
+login auth = pure $ basePage auth $
   H.form
     ! HA.method "POST"
     ! HA.action (textValue $ linkText (Proxy @PostLogin))

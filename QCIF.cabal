@@ -61,12 +61,14 @@ library
                     , Data.Html.Register
                     , Data.Html.Page
                     , Data.Html.Util
+                    , Data.Html.User
                     , Server
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: DataKinds
                       , OverloadedRecordDot
                       , OverloadedStrings
+                      , DuplicateRecordFields
 
 executable QCIF
     import:           warnings

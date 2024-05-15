@@ -12,6 +12,7 @@ import Control.Monad.IO.Class
 import Data.Password.Argon2
 import Data.Types.Error
 import Data.Text
+import Data.Aeson
 
 newtype BasicAuthCfg' = BasicAuthCfg' Connection
 type instance BasicAuthCfg = BasicAuthCfg'
@@ -32,3 +33,16 @@ checkUserPassword c name pass = do
   case checkPassword (mkPassword pass) hash of
     PasswordCheckFail -> throwError BadPassword
     PasswordCheckSuccess -> pure u.userId
+
+-- All of the auth types we want to support.
+-- Any of these can be used on any route.
+type Auths = '[BasicAuth, Cookie, JWT]
+type AuthLogin = Auth Auths UserId
+type Authed = AuthResult UserId
+
+data AuthedValue a = AuthedValue
+  { auth :: Authed
+  , value :: a
+  }
+instance ToJSON a => ToJSON (AuthedValue a) where
+  toJSON = toJSON . value

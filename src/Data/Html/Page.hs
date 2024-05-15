@@ -4,17 +4,24 @@ import qualified Text.Blaze.Html5 as H
 import Data.Text
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5.Attributes as HA
+import Data.Types.API
+import Servant
+import Data.Html.Util
+import Data.Types.Auth
 
-basePage :: H.Html -> H.Html
-basePage content = H.html $ mconcat
+basePage :: Authed -> H.Html -> H.Html
+basePage auth content = H.html $ mconcat
   [ pageHead
-  , pageContent content
+  , pageContent auth content
   ]
 
-pageContent :: H.Html -> H.Html
-pageContent content = H.body $ mconcat
+pageContent :: Authed -> H.Html -> H.Html
+pageContent auth content = H.body $ mconcat
   [ contentHeader
-  , content
+  , H.main $ mconcat
+    [ sideNav auth
+    , H.div ! HA.id "content" $ content
+    ]
   , contentFooter
   ]
 
@@ -30,7 +37,20 @@ pageHead = H.head $ mconcat
   ]
 
 contentHeader :: H.Html
-contentHeader = H.header $ H.h1 "Chat App"
+contentHeader = H.header
+  $ H.h1 $ H.a ! HA.href "/" $ "Chat App"
 
 contentFooter :: H.Html
 contentFooter = H.footer mempty
+
+sideNav :: Authed -> H.Html
+sideNav auth = H.nav $ mconcat
+  [ H.a ! HA.href (H.textValue $ linkText $ Proxy @(AuthLogin :> GetLogin)) $ "Login"
+  , H.br
+  , H.a ! HA.href (H.textValue $ linkText $ Proxy @(AuthLogin :> GetRegister)) $ "Register"
+  , whenLoggedIn auth $ \_userId -> mconcat
+    [ H.br
+    , H.a ! HA.href (H.textValue $ linkText $ Proxy @(AuthLogin :> GetMessagesApi)) $ "Messages"
+    , H.br
+    , H.a ! HA.href (H.textValue $ linkText $ Proxy @(AuthLogin :> GetMessage)) $ "New Message"
+    ]]

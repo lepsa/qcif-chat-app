@@ -7,9 +7,10 @@ import Data.Html.Page
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5.Attributes as HA
 import Data.Data
+import Data.Types.Auth
 
 register :: CanAppM m c e => Authed -> m H.Html
-register _auth = pure $ basePage $ H.form
+register auth = pure $ basePage auth $ H.form
   ! HA.method "POST"
   ! HA.action (textValue $ linkText (Proxy @PostRegister))
   $ mconcat

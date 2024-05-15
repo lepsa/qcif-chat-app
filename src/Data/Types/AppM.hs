@@ -2,7 +2,6 @@ module Data.Types.AppM where
 
 import Control.Monad.Reader
 import Control.Monad.Except
-import Control.Monad.IO.Class
 import Data.Types.Env
 import Data.Types.Error
 import Servant
