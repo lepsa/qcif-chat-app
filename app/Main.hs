@@ -1,4 +1,5 @@
 module Main where
+
 import Data.Types.API
 import Server
 

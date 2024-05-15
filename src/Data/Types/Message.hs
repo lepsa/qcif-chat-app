@@ -15,6 +15,9 @@ import Data.UUID.V4 (nextRandom)
 import Database.SQLite.Simple.ToField
 import Data.Types.Error
 import Data.Aeson
+import Text.Blaze (ToMarkup, toMarkup)
+import qualified Text.Blaze.Html5 as H
+import Web.FormUrlEncoded
 
 newtype MessageId = MessageId { unMessageId :: UUID }
   deriving (Eq, Ord, Show, Generic)
@@ -33,6 +36,11 @@ instance FromJSON CreateMessage where
   parseJSON = withObject "CreateMessage" $ \o -> CreateMessage
     <$> o .: "to"
     <*> o .: "body"
+
+instance FromForm CreateMessage where
+  fromForm f = CreateMessage
+    <$> parseUnique "to" f
+    <*> parseUnique "body" f
 
 data Message = Message
   { messageId   :: MessageId
@@ -56,6 +64,17 @@ instance ToJSON Message where
     , "to" .= m.messageTo
     , "body" .= m.messageBody
     , "sent" .= m.messageSent
+    ]
+
+instance ToMarkup [Message] where
+  toMarkup = H.ul . mconcat . fmap (H.li . toMarkup)
+instance ToMarkup Message where
+  toMarkup m = H.div $ mconcat
+    [ H.p $ H.toHtml $ "ID: " <> show m.messageId
+    , H.p $ H.toHtml $ "From: " <> show m.messageFrom
+    , H.p $ H.toHtml $ "To: " <> show m.messageTo
+    , H.p $ H.toHtml $ "Body: " <> show m.messageBody
+    , H.p $ H.toHtml $ "Sent: " <> show m.messageSent
     ]
 
 -- Store the last time a user requested their messages.

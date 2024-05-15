@@ -17,11 +17,17 @@ import Control.Monad
 import Data.UUID.V4 (nextRandom)
 import Data.Password.Argon2
 import Servant.Auth.JWT
+import Text.Blaze (ToMarkup (toMarkup))
+import qualified Text.Blaze.Html5 as H
+import Servant (FromHttpApiData (parseQueryParam))
+import Web.FormUrlEncoded
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
 newtype UserId = UserId { unUserId :: UUID }
   deriving (Eq, Ord, Show, Generic)
+instance FromHttpApiData UserId where
+  parseQueryParam t = UserId <$> parseQueryParam t
 instance FromField UserId where
   fromField :: FieldParser UserId
   fromField f = UserId <$> fromField f
@@ -38,6 +44,14 @@ data User = User
   { userId :: UserId
   , userName :: Text
   } deriving (Eq, Ord, Show, Generic)
+
+instance ToMarkup User where
+  toMarkup u = H.div $ mconcat
+    [ H.p $ H.toHtml $ "ID: " <> show u.userId
+    , H.p $ H.toHtml $ "Name: " <> show u.userName
+    ]
+instance ToMarkup [User] where
+  toMarkup = H.ul . mconcat . fmap (H.li . toMarkup)
 
 instance FromRow User where
   fromRow = User <$> field <*> field
@@ -69,7 +83,12 @@ data Login = Login
 instance FromJSON Login where
   parseJSON = withObject "Login" $ \o -> Login
     <$> o .: "user"
-    <*> o .: "pass"
+    <*> o .: "password"
+
+instance FromForm Login where
+  fromForm f = Login
+    <$> parseUnique "user" f
+    <*> parseUnique "password" f
 
 getUser :: CanAppM m c e => UserId -> m User
 getUser uid = do

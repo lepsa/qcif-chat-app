@@ -10,6 +10,7 @@ import Control.Monad
 import Database.SQLite.Simple.FromRow
 import Data.Password.Argon2
 import Data.Text
+import Text.Blaze
 
 instance FromField UUID where
   fromField = fromField @String >=> maybe (fail "Could not parse UUID") pure . fromString
@@ -26,3 +27,6 @@ instance FromRow (PasswordHash Argon2) where
 
 instance ToField (PasswordHash Argon2) where
   toField = toField . unPasswordHash
+
+instance ToMarkup () where
+  toMarkup _ = mempty
