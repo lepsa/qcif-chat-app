@@ -15,3 +15,6 @@ type CanAppM m c e =
   , HasEnv c
   , FromAppError e
   )
+
+runAppM :: forall m c e a. c -> AppM m c e a -> m (Either e a)
+runAppM c m = runExceptT $ runReaderT m c

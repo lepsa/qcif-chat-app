@@ -72,5 +72,24 @@ runMigration c (version, queries) = do
   -- Bump the version for the migration
   execute c setSchema $ version + 1
 
+-- Set the initial version of the schema to "0" so that other
+-- schema bumps have something to work against. When this migration
+-- is run, it will be immediately followed by a schema version bump
+-- so the rest of the migration code can run properly.
+migrateSchemaV0 :: [Query]
+migrateSchemaV0 =
+  [ "insert into schema_version (version) values (0)"
+  ]
+
+migrateSchemaV1 :: [Query]
+migrateSchemaV1 =
+  [ "create table user(id text primary key not null, name text not null)"
+  , "create table user_pass(id text primary key not null, hash text not null)"
+  , "create table message(id text primary key not null, from text not null, to text not null, body text not null, sent datetime not null)"
+  ]
+
 migrations :: [(SchemaVersion, [Query])]
-migrations = []
+migrations =
+  [ (0, migrateSchemaV0)
+  , (1, migrateSchemaV1)
+  ]

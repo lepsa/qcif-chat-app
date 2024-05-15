@@ -45,8 +45,10 @@ library
                     , Data.Types.Error
                     , Data.Types.Env
                     , Data.Types.Message
+                    , Data.Types.Orphans
                     , Data.DB
                     , Data.DB.Schema
+                    , Server
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: DataKinds

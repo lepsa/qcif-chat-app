@@ -4,11 +4,19 @@ import Data.UUID
 import Data.Text
 import Data.Aeson
 import GHC.Generics
+import Database.SQLite.Simple.FromField
+import Data.Types.Orphans ()
+import Database.SQLite.Simple.ToField
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
 newtype UserId = UserId { unUserId :: UUID }
   deriving (Eq, Ord, Show, Generic)
+instance FromField UserId where
+  fromField :: FieldParser UserId
+  fromField f = UserId <$> fromField f
+instance ToField UserId where
+  toField = toField . unUserId
 
 instance ToJSON UserId where
   toJSON = toJSON . unUserId
