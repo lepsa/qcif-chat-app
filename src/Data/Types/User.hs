@@ -12,10 +12,11 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Types.Env
 import Database.SQLite.Simple
-import Data.Types.Error (singleResult, throwError_, AppError (BadAuth))
+import Data.Types.Error (singleResult)
 import Control.Monad
 import Data.UUID.V4 (nextRandom)
 import Data.Password.Argon2
+import Servant.Auth.JWT
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
@@ -26,7 +27,8 @@ instance FromField UserId where
   fromField f = UserId <$> fromField f
 instance ToField UserId where
   toField = toField . unUserId
-
+instance ToJWT UserId
+instance FromJWT UserId
 instance ToJSON UserId where
   toJSON = toJSON . unUserId
 instance FromJSON UserId where
@@ -87,12 +89,3 @@ getUsers :: CanAppM m c e => m [User]
 getUsers = do
   c <- asks conn
   liftIO $ query_ c "select id, name from user"
-
-checkUserPassword :: CanAppM m c e => Login -> m ()
-checkUserPassword (Login name pass) = do
-  c <- asks conn
-  u :: User <- singleResult <=< liftIO $ query c "select id, name from user where name = ?" (Only name)
-  hash <- singleResult <=< liftIO $ query c "select hash from user_hash where id = ?" (Only u.userId)
-  case checkPassword (mkPassword pass) hash of
-    PasswordCheckFail -> throwError_ BadAuth
-    PasswordCheckSuccess -> pure ()

@@ -38,6 +38,8 @@ library
                     , blaze-html
                     , blaze-markup
                     , servant-blaze
+                    , jose
+                    , bytestring
     exposed-modules:  Data.Types
                     , Data.Types.API
                     , Data.Types.User
@@ -46,6 +48,7 @@ library
                     , Data.Types.Env
                     , Data.Types.Message
                     , Data.Types.Orphans
+                    , Data.Types.Auth
                     , Data.DB
                     , Data.DB.Schema
                     , Server

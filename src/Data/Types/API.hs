@@ -14,6 +14,9 @@ import Data.Types.Error
 import Data.Time (getCurrentTime)
 import Control.Monad.IO.Class
 import Control.Monad.Reader
+import Data.Types.Auth
+import Control.Monad.Trans.Except
+import Control.Monad
 
 -- All of the auth types we want to support.
 -- Any of these can be used on any route.
@@ -25,12 +28,16 @@ type Authed = AuthResult UserId
 type SetLoginCookies a = Headers
   '[ Header "Set-Cookie" SetCookie
    , Header "Set-Cookie" SetCookie
-   -- , Header "Location" Text
    ] a
+
+topAPI :: Proxy TopAPI
+topAPI = Proxy
 
 type TopAPI =
     AuthLogin:> MainAPI
-  :<|> "login" :> ReqBody '[JSON] Login :> Post '[JSON] (SetLoginCookies ())
+  :<|> LoginAPI
+
+type LoginAPI = "login" :> ReqBody '[JSON] Login :> Post '[JSON] (SetLoginCookies ())
 
 type MainAPI = HtmlAPI :<|> JsonAPI
 
@@ -38,13 +45,20 @@ type HtmlAPI = Get '[HTML] Html
 type JsonAPI = 
        "messages" :> Get '[JSON] [Message]
   :<|> "messages" :> "all" :> Get '[JSON] [Message]
-  :<|> "message" :> ReqBody '[JSON] CreateMessage :> PostNoContent
+  :<|> "message" :> ReqBody '[JSON] CreateMessage :> Post '[JSON] ()
   :<|> "users" :> Get '[JSON] [User]
 
-server :: ServerT TopAPI (AppM IO Env AppError)
-server = mainServer :<|> login
+server :: CookieSettings -> JWTSettings -> ServerT TopAPI (AppM IO Env AppError)
+server cookieSettings jwtSettings = mainServer :<|> login
   where
-    login = undefined
+    login :: ServerT LoginAPI (AppM IO Env AppError)
+    login l = do
+      c <- asks conn
+      uid <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
+      mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings uid
+      case mApplyCookies of
+        Nothing -> throwError_ $ Other "Could not apply login cookies"
+        Just cookies -> pure $ cookies ()
 
 mainServer :: Authed -> ServerT MainAPI (AppM IO Env AppError)
 mainServer auth = htmlServer auth :<|> jsonServer auth
@@ -63,12 +77,12 @@ jsonServer (Authenticated uid) =
       t <- liftIO getCurrentTime
       getSyncedMessages t uid
     getAllMessages = getAllMessagesForUser uid
-    postMessage msg = NoContent <$ writeMessage uid msg
+    postMessage msg = void $ writeMessage uid msg
     getUsers = U.getUsers
-jsonServer _ = hoistServer (Proxy @JsonAPI) nat $ throwAll err401
-  where
-    nat :: AppM IO Env ServerError a -> AppM IO Env AppError a
-    nat n = do
-      c <- ask
-      e <- liftIO $ runAppM c n
-      either throwError_ pure e
+jsonServer _ = hoistServer (Proxy @JsonAPI) serverNat $ throwAll err401
+
+serverNat :: AsError e' e => AppM IO Env e a -> AppM IO Env e' a
+serverNat n = do
+  c <- ask
+  e <- liftIO $ runAppM c n
+  either throwError_ pure e

@@ -1,4 +1,6 @@
 module Main where
+import Data.Types.API
+import Server
 
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = runServer (pure ()) topAPI server 8080
