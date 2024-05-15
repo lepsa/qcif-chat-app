@@ -6,8 +6,14 @@ import Servant.Auth.Server
 import Data.Text
 import Text.Blaze.Html
 import Servant.HTML.Blaze
-import Data.Types.User
+import Data.Types.User (UserId, User)
+import Data.Types.User qualified as U
 import Data.Types.Message
+import Data.Types.AppM (AppM)
+import Data.Types.Env
+import Data.Types.Error
+import Data.Time (getCurrentTime)
+import Control.Monad.IO.Class
 
 -- All of the auth types we want to support.
 -- Any of these can be used on any route.
@@ -19,15 +25,33 @@ type SetLoginCookies a = Headers
    , Header "Location" Text
    ] a
 
-type TopAPI = Auth Auths UserId :> API
+type TopAPI = Auth Auths UserId :> MainAPI
 
-type API = HtmlAPI :<|> JsonAPI
+type MainAPI = HtmlAPI :<|> JsonAPI
 
 type HtmlAPI = Get '[HTML] Html
 type JsonAPI = 
-       -- Messages since the last request
        "messages" :> Get '[JSON] [Message]
-       -- All messages. Useful for history and re-syncing a client
   :<|> "messages" :> "all" :> Get '[JSON] [Message]
-  :<|> "message" :> Capture "message-id" MessageId :> Get '[Message] Message
   :<|> "message" :> ReqBody '[JSON] CreateMessage :> PostNoContent
+  :<|> "users" :> Get '[JSON] [User]
+
+server :: UserId -> ServerT MainAPI (AppM IO Env AppError)
+server uid = htmlServer uid :<|> jsonServer uid
+
+htmlServer :: UserId -> ServerT HtmlAPI (AppM IO Env AppError)
+htmlServer _uid = pure mempty
+
+jsonServer :: UserId -> ServerT JsonAPI (AppM IO Env AppError)
+jsonServer uid =
+       getMessages
+  :<|> getAllMessages
+  :<|> postMessage
+  :<|> getUsers
+  where
+    getMessages = do
+      t <- liftIO getCurrentTime
+      getSyncedMessages t uid
+    getAllMessages = getAllMessagesForUser uid
+    postMessage msg = NoContent <$ writeMessage uid msg
+    getUsers = U.getUsers

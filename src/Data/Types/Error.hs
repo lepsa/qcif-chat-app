@@ -5,15 +5,14 @@ data AppError
   = AppError
   | DB DBError
   deriving (Eq, Ord, Show)
-instance FromAppError AppError where
-  fromAppError = id
-instance ToAppError AppError where
-  toAppError = id
 
-class FromAppError e where
-  fromAppError :: AppError -> e
-class ToAppError e where
-  toAppError :: e -> AppError
+class AsAppError e a where
+  fromAppError :: a -> e
+  toAppError :: e -> Maybe a
+
+instance AsAppError e e where
+  fromAppError = id
+  toAppError = pure
 
 data DBError
   = NotFound
@@ -22,5 +21,15 @@ data DBError
   | Other String
   deriving (Eq, Ord, Show)
 
-throwError_ :: (FromAppError e, MonadError e m) => AppError -> m a
+instance AsAppError AppError DBError where
+  fromAppError = fromAppError . DB
+  toAppError (DB e) = pure e
+  toAppError _ = Nothing
+
+throwError_ :: (MonadError e m, AsAppError e e') => e' -> m a
 throwError_ = throwError . fromAppError
+
+singleResult :: (AsAppError e DBError, MonadError e m) => [a] -> m a
+singleResult [] = throwError_ NotFound
+singleResult [a] = pure a
+singleResult _ = throwError_ TooManyResults

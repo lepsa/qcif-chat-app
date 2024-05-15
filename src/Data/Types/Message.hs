@@ -23,8 +23,7 @@ instance ToField MessageId where
   toField = toField . unMessageId
 
 data CreateMessage = CreateMessage
-  { createMessageFrom :: UserId
-  , createMessageTo   :: UserId
+  { createMessageTo   :: UserId
   , createMessageBody :: Text
   } deriving (Eq, Ord, Show, Generic)
 
@@ -52,6 +51,21 @@ data MessageSync = MessageSync
 instance FromRow MessageSync where
   fromRow = MessageSync <$> field <*> field
 
+getSyncedMessages :: forall m c e. CanAppM m c e => UTCTime -> UserId -> m [Message]
+getSyncedMessages t uid = do
+  conf <- ask
+  let c = conn conf
+  e <- liftIO $ withTransaction c $ runAppM @IO @c @e conf $ do
+    l <- getRecentMessagesForUser uid
+    setMessageSync t uid
+    pure l
+  either throwError_ pure e
+
+setMessageSync :: CanAppM m c e => UTCTime -> UserId -> m ()
+setMessageSync t uid = do
+  c <- asks conn
+  liftIO $ execute c "update message_sync set time = ? where user = ?" (t, uid)
+
 getMessageSync :: CanAppM m c e => UserId -> m (Maybe MessageSync)
 getMessageSync uid = do
   c <- asks conn
@@ -66,13 +80,20 @@ getAllMessagesForUser uid = do
   c <- asks conn
   liftIO $ query c "select id, from, to, body, sent from message where from = ?" (Only uid)
 
+getRecentMessagesForUser :: CanAppM m c e => UserId -> m [Message]
+getRecentMessagesForUser uid = do
+  mSync <- getMessageSync uid
+  case mSync of
+    Nothing -> getAllMessagesForUser uid
+    Just sync -> getMessagesForUserSince uid sync.syncTime
+
 getMessagesForUserSince :: CanAppM m c e => UserId -> UTCTime -> m [Message]
 getMessagesForUserSince uid since = do
   c <- asks conn
   liftIO $ query c "select id, from, to, body, sent from message where from = ? and sent >= ?" (uid, since)
 
-writeMessage :: CanAppM m c e => CreateMessage -> m MessageId
-writeMessage (CreateMessage from to body) = do
+writeMessage :: CanAppM m c e => UserId -> CreateMessage -> m MessageId
+writeMessage from (CreateMessage to body) = do
   c <- asks conn
   mid <- MessageId <$> liftIO nextRandom
   liftIO $ execute c "insert into message (id, from, to, body, sent) values (?, ?, ?, ?, datetime())" (mid, from, to, body)
