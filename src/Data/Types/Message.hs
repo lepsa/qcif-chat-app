@@ -1,9 +1,9 @@
 module Data.Types.Message where
 
 import Data.Types.User
-import Data.Text
+import Data.Text hiding (null)
 import GHC.Generics (Generic)
-import Data.UUID
+import Data.UUID hiding (null)
 import Data.Types.AppM
 import Database.SQLite.Simple
 import Data.Types.Env
@@ -78,9 +78,12 @@ displayMessage m = H.div $ mconcat
 
 instance ToMarkup [Message] where
   toMarkup l = basePage $ mconcat
-    [ H.p "Your new messages:"
-    , H.ul . mconcat $ (H.li . displayMessage) <$> l
+    [ H.h3 "Messages"
+    , if null l
+      then H.p "No new messages"
+      else H.ul . mconcat $ (H.li . displayMessage) <$> l
     ]
+
 instance ToMarkup Message where
   toMarkup = basePage . displayMessage
 
