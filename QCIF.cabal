@@ -18,7 +18,7 @@ common warnings
 
 library
     import:           warnings
-    build-depends:    base ^>=4.19.1.0
+    build-depends:    base
                     , lens
                     , transformers
                     , mtl
@@ -74,7 +74,26 @@ executable QCIF
     main-is:          Main.hs
     -- other-modules:
     -- other-extensions:
-    build-depends:    base ^>=4.19.1.0
+    build-depends:    base
                     , QCIF
     hs-source-dirs:   app
     default-language: GHC2021
+
+test-suite QCIF-test
+    import:           warnings
+    main-is:          Main.hs
+    build-depends:    base
+                    , QCIF
+                    , hedgehog
+                    , http-client
+                    , http-types
+                    , containers
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    default-language: GHC2021
+    other-modules:    Test.Types
+                    , Test.StateMachine
+                    , Test.API
+    default-extensions: DataKinds
+                      , OverloadedRecordDot
+                      , OverloadedStrings

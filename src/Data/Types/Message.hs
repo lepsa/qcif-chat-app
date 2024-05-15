@@ -55,13 +55,43 @@ data AuthedMessage = AuthedMessage
 instance ToJSON AuthedMessage where
   toJSON m = toJSON m.message
 
-data Message = Message
-  { messageId   :: MessageId
-  , messageFrom :: UserId
-  , messageTo   :: UserId
-  , messageBody :: Text
-  , messageSent :: UTCTime
+data DbMessage = DbMessage
+  { dbMessageId   :: MessageId
+  , dbMessageFrom :: UserId
+  , dbMessageTo   :: UserId
+  , dbMessageBody :: Text
+  , dbMessageSent :: UTCTime
   } deriving (Eq, Ord, Show, Generic)
+
+instance FromRow DbMessage where
+  fromRow = DbMessage
+    <$> field
+    <*> field
+    <*> field
+    <*> field
+    <*> field
+
+data Message = Message
+  { messageId       :: MessageId
+  , messageFrom     :: UserId
+  , messageFromName :: Text
+  , messageTo       :: UserId
+  , messageToName   :: Text
+  , messageBody     :: Text
+  , messageSent     :: UTCTime
+  } deriving (Eq, Ord, Show, Generic)
+
+instance ToJSON Message where
+  toJSON m = object
+    [ "id"       .= m.messageId
+    , "from"     .= m.messageFrom
+    , "fromName" .= m.messageFromName
+    , "to"       .= m.messageTo
+    , "toName"   .= m.messageToName
+    , "body"     .= m.messageBody
+    , "sent"     .= m.messageSent
+    ]
+
 instance FromRow Message where
   fromRow = Message
     <$> field
@@ -69,14 +99,8 @@ instance FromRow Message where
     <*> field
     <*> field
     <*> field
-instance ToJSON Message where
-  toJSON m = object
-    [ "id" .= m.messageId
-    , "from" .= m.messageFrom
-    , "to" .= m.messageTo
-    , "body" .= m.messageBody
-    , "sent" .= m.messageSent
-    ]
+    <*> field
+    <*> field
 
 data MessagePosted = MessagePosted
   deriving (Eq, Ord, Show)
@@ -119,7 +143,13 @@ getMessageSync uid = do
 getAllMessagesForUser :: CanAppM m c e => UserId -> m [Message]
 getAllMessagesForUser uid = do
   c <- asks conn
-  liftIO $ query c "select id, from_user, to_user, body, sent from message where from_user = ?" (Only uid)
+  liftIO $ query c
+    "select m.id, m.from_user, u1.name, m.to_user, u2.name, m.body, m.sent \
+    \from message as m \
+    \join user as u1 on m.from_user = u1.id \
+    \join user as u2 on m.to_user = u2.id \
+    \where m.from_user = ?"
+    (Only uid)
 
 getRecentMessagesForUser :: CanAppM m c e => UserId -> m [Message]
 getRecentMessagesForUser uid = do
@@ -131,7 +161,13 @@ getRecentMessagesForUser uid = do
 getMessagesForUserSince :: CanAppM m c e => UserId -> UTCTime -> m [Message]
 getMessagesForUserSince uid since = do
   c <- asks conn
-  liftIO $ query c "select id, from_user, to_user, body, sent from message where from_user = ? and sent >= ?" (uid, since)
+  liftIO $ query c
+    "select m.id, m.from_user, u1.name, m.to_user, u2.name, m.body, m.sent \
+    \from message as m \
+    \join user as u1 on m.from_user = u1.id \
+    \join user as u2 on m.to_user = u2.id \
+    \where m.from_user = ? and m.sent >= ?"
+    (uid, since)
 
 writeMessage :: CanAppM m c e => UserId -> CreateMessage -> m MessageId
 writeMessage from (CreateMessage to body) = do

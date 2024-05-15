@@ -49,27 +49,33 @@ newMessage _ = throwError_ BadAuth
 
 displayMessage :: Message -> H.Html
 displayMessage m = H.div $ H.p $ mconcat
-    [ H.toHtml $ "ID: " <> show m.messageId
+    [ H.toHtml $ "From: " <> m.messageFromName
     , H.br
-    , H.toHtml $ "From: " <> show m.messageFrom
-    , H.br
-    , H.toHtml $ "To: " <> show m.messageTo
+    , H.toHtml $ "To: " <> m.messageToName
     , H.br
     , H.toHtml $ "Sent: " <> show m.messageSent
     , H.br
-    , H.toHtml $ "Body: " <> show m.messageBody
+    , H.toHtml $ "Body: " <> m.messageBody
     ]
 
 displayMessages :: Bool -> [Message] -> H.Html
 displayMessages allMsgs messages = mconcat
     [ H.h3 "Messages"
-    , if null messages
-      then H.p "No new messages"
-      else H.ul . mconcat $ (H.li . displayMessage) <$> messages
+    , refresh
     , if allMsgs
       then mempty
       else H.p $ H.a ! HA.href (textValue $ linkText $ Proxy @(AuthLogin :> GetAllMessagesApi)) $ "Get all messages"
+    , if null messages
+      then H.p "No new messages"
+      else H.ul . mconcat $ (H.li . displayMessage) <$> messages
     ]
+  where
+    refreshLink = if allMsgs
+      then textValue $ linkText $ Proxy @(AuthLogin :> GetAllMessagesApi)
+      else textValue $ linkText $ Proxy @(AuthLogin :> GetMessagesApi)
+    refresh = H.p $ H.a
+      ! HA.href refreshLink 
+      $ "Refresh Messages"
 
 instance ToMarkup (AuthedValue AllMessages) where
   toMarkup a = basePage a.auth $ displayMessages True a.value.allMessages

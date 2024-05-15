@@ -47,10 +47,11 @@ runServer
   :: (HasServer (api :: Type) '[BasicAuthCfg', CookieSettings, JWTSettings])
   => IO ()
   -> Proxy api
+  -> FilePath
   -> (CookieSettings -> JWTSettings -> FilePath -> ServerT api (AppM IO Env AppError))
   -> Port
   -> IO ()
-runServer onStartup api serverM port = do
+runServer onStartup api dbPath serverM port = do
   c <- open dbPath
   tz <- getCurrentTimeZone
   currentDirectory <- getCurrentDirectory
@@ -80,7 +81,6 @@ runServer onStartup api serverM port = do
         (runToHandler conf) $
         serverM cookieSettings jwtSettings currentDirectory
   where
-    dbPath = "chat-server.db"
     dbErr e = error $ "An error occurred while setting up the database: " <> show e
     runToHandler :: Env -> AppM IO Env AppError a -> Handler a
     runToHandler conf m = do
