@@ -3,10 +3,10 @@ module Data.Types.API where
 import Servant hiding (BasicAuth)
 import Servant.Auth
 import Servant.Auth.Server
-import Data.UUID
 import Data.Text
 import Text.Blaze.Html
 import Servant.HTML.Blaze
+import Data.Types.User
 
 -- All of the auth types we want to support.
 -- Any of these can be used on any route.
@@ -18,11 +18,7 @@ type SetLoginCookies a = Headers
    , Header "Location" Text
    ] a
 
--- What we include in JWTs. Make it as small as possible,
--- and don't store anything that can change between requests.
-newtype UserKey = UserKey { unUserKey :: UUID }
-
-type TopAPI = Auth Auths UserKey :> API
+type TopAPI = Auth Auths UserId :> API
 
 type API = HtmlAPI :<|> JsonAPI
 

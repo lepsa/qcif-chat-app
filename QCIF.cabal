@@ -44,6 +44,7 @@ library
                     , Data.Types.AppM
                     , Data.Types.Error
                     , Data.Types.Env
+                    , Data.Types.Message
                     , Data.DB
                     , Data.DB.Schema
     hs-source-dirs:   src
