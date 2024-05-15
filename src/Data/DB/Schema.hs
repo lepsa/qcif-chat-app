@@ -85,11 +85,29 @@ migrateSchemaV1 :: [Query]
 migrateSchemaV1 =
   [ "create table user(id text primary key not null, name text not null)"
   , "create table user_pass(id text primary key not null, hash text not null)"
-  , "create table message(id text primary key not null, from text not null, to text not null, body text not null, sent datetime not null)"
+  , "create table message(id text primary key not null, fromuser text not null, to_user text not null, body text not null, sent datetime not null)"
+  ]
+
+migrateSchemaV2 :: [Query]
+migrateSchemaV2 =
+  [ "create table jwk (value text not null)"
+  ]
+
+migrateSchemaV3 :: [Query]
+migrateSchemaV3 =
+  [ "create table message_sync(user text primary key not null, time datetime not null)"
+  ]
+
+migrateSchemaV4 :: [Query]
+migrateSchemaV4 =
+  [ "alter table message rename column fromuser to from_user"
   ]
 
 migrations :: [(SchemaVersion, [Query])]
 migrations =
   [ (0, migrateSchemaV0)
   , (1, migrateSchemaV1)
+  , (2, migrateSchemaV2)
+  , (3, migrateSchemaV3)
+  , (4, migrateSchemaV4)
   ]

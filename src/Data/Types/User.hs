@@ -59,7 +59,7 @@ data CreateUser = CreateUser
   } deriving (Eq, Ord, Generic)
 instance FromJSON CreateUser where
   parseJSON = withObject "CreateUser" $ \o -> CreateUser
-    <$> o .: "id"
+    <$> o .: "name"
     <*> o .: "password"
 
 data Login = Login

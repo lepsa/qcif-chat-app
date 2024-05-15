@@ -93,7 +93,7 @@ getMessageSync uid = do
 getAllMessagesForUser :: CanAppM m c e => UserId -> m [Message]
 getAllMessagesForUser uid = do
   c <- asks conn
-  liftIO $ query c "select id, from, to, body, sent from message where from = ?" (Only uid)
+  liftIO $ query c "select id, from_user, to_user, body, sent from message where from_user = ?" (Only uid)
 
 getRecentMessagesForUser :: CanAppM m c e => UserId -> m [Message]
 getRecentMessagesForUser uid = do
@@ -105,11 +105,11 @@ getRecentMessagesForUser uid = do
 getMessagesForUserSince :: CanAppM m c e => UserId -> UTCTime -> m [Message]
 getMessagesForUserSince uid since = do
   c <- asks conn
-  liftIO $ query c "select id, from, to, body, sent from message where from = ? and sent >= ?" (uid, since)
+  liftIO $ query c "select id, from_user, to_user, body, sent from message where from_user = ? and sent >= ?" (uid, since)
 
 writeMessage :: CanAppM m c e => UserId -> CreateMessage -> m MessageId
 writeMessage from (CreateMessage to body) = do
   c <- asks conn
   mid <- MessageId <$> liftIO nextRandom
-  liftIO $ execute c "insert into message (id, from, to, body, sent) values (?, ?, ?, ?, datetime())" (mid, from, to, body)
+  liftIO $ execute c "insert into message (id, from_user, to_user, body, sent) values (?, ?, ?, ?, datetime())" (mid, from, to, body)
   pure mid
