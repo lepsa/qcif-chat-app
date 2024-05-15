@@ -34,9 +34,15 @@ library
                     , wai
                     , warp
                     , password
+                    , aeson
+                    , blaze-html
+                    , blaze-markup
+                    , servant-blaze
     exposed-modules:  Data.Types
+                    , Data.Types.API
     hs-source-dirs:   src
     default-language: GHC2021
+    default-extensions: DataKinds
 
 executable QCIF
     import:           warnings
