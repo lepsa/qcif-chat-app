@@ -17,7 +17,7 @@ import qualified Data.ByteString as BS
 import Text.Read (readMaybe)
 import Data.Types.User (UserId(UserId))
 import Data.UUID hiding (null)
-import Data.Types.Message (Message, MessageId)
+import Data.Types.Message (MessageId)
 import Data.Text (Text)
 import Data.Text.Encoding.Base64
 import Data.Text.Encoding
@@ -28,6 +28,7 @@ import Data.Maybe
 import Control.Monad
 import Data.Types.User (User)
 import Data.Types.User (User(User))
+import Data.Foldable
 
 genChar :: MonadGen m => m Char
 genChar = Gen.filterT isPrint Gen.ascii
@@ -103,7 +104,7 @@ genAuth uid u =
       , Bearer uid jwt
       ]
 
-requireUserAuth :: (HasUserId (input v) v, HasAuth (input v) v, Ord1 v, Eq1 v) => TestState v -> input v -> Bool
+requireUserAuth :: (HasUserId input, HasAuth input, Ord1 v, Eq1 v) => TestState v -> input v -> Bool
 requireUserAuth state input =
   case M.lookup (input ^. userId) $ state ^. users of
     Nothing -> False
@@ -161,14 +162,25 @@ loginUser env = Command gen exe
       res.responseStatus === status303
       extractJwt res
 
+diffMessages :: MonadTest m => [TestMessage Concrete] -> [TestMessage Concrete] -> m ()
+diffMessages la lb = traverse_ (\(a, b) -> diff a diffMsg b) $ zip la lb
+  where
+    diffMsg a b =
+         a ^. tmId . to concrete . _1 == b ^. tmId . to concrete . _1
+      && a ^. tmFrom == b ^. tmFrom
+      && a ^. tmTo == b ^. tmTo
+      && a ^. tmBody == b ^. tmBody
+
 getAllMessages :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 getAllMessages env = Command gen exe
   [ Require requireUserAuth
+  , Update $ \state input output -> state
+    & messageSync . at (input ^. userId) .~ Just output
   , Ensure $ \_old new input output -> do
     let stateMsgs = sort $ new ^. messages . ix (input ^. userId)
-        apiMsgs   = sort $ mkTestMessage <$> output
+        apiMsgs   = sort $ mkTestMessage <$> view moMessages output
     annotate $ show new
-    stateMsgs === apiMsgs
+    diffMessages stateMsgs apiMsgs
   ]
   where
     gen :: TestState v -> Maybe (gen (GetAllMessages v))
@@ -177,17 +189,48 @@ getAllMessages env = Command gen exe
       else Just $ do
         a <- uncurry genAuth <=< Gen.element $ M.toList $ state ^. users
         pure $ GetAllMessages a
-    exe :: GetAllMessages Concrete -> m [Message]
+    exe :: GetAllMessages Concrete -> m MessagesOutput
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/messages/all"
-      let req' = mkJsonReq methodGet [mkAuth $ input ^. gamAuth] req
+      let req' = mkJsonReq methodGet [mkAuth $ input ^. auth] req
       res <- liftIO $ H.httpLbs req' $ env ^. manager
+      time <- liftIO getCurrentTime
       annotate $ show res
       res.responseStatus === status200
-      either fail pure $ eitherDecode res.responseBody
+      msgs <- either fail pure $ eitherDecode res.responseBody
+      pure $ MessagesOutput msgs time
 
 getMessages :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
-getMessages = undefined
+getMessages env = Command gen exe
+  [ Require requireUserAuth
+  , Update $ \state input output -> state
+    & messageSync . at (input ^. userId) .~ Just output
+  , Ensure $ \_old new input output -> do
+    let syncTime  = view moTime output
+        stateMsgs = sort
+          $ filter (\tm -> tm ^. tmId . to concrete . _2 >= syncTime)
+          $ new ^. messages . ix (input ^. userId)
+        apiMsgs   = sort $ mkTestMessage <$> view moMessages output
+    annotate $ show new
+    diffMessages stateMsgs apiMsgs
+  ]
+  where
+    gen :: TestState v -> Maybe (gen (GetMessages v))
+    gen state = if M.null $ state ^. users
+      then Nothing
+      else Just $ do
+        a <- uncurry genAuth <=< Gen.element $ M.toList $ state ^. users
+        pure $ GetMessages a
+    exe :: GetMessages Concrete -> m MessagesOutput
+    exe input = do
+      req <- H.parseRequest $ view baseUrl env <> "/messages/all"
+      let req' = mkJsonReq methodGet [mkAuth $ input ^. auth] req
+      res <- liftIO $ H.httpLbs req' $ env ^. manager
+      time <- liftIO getCurrentTime
+      annotate $ show res
+      res.responseStatus === status200
+      msgs <- either fail pure $ eitherDecode res.responseBody
+      pure $ MessagesOutput msgs time
 
 postMessage :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 postMessage env = Command gen exe
@@ -213,17 +256,19 @@ postMessage env = Command gen exe
           <$> pure a
           <*> pure toId
           <*> genText
-    exe :: PostMessage Concrete -> m MessageId
+    exe :: PostMessage Concrete -> m (MessageId, UTCTime)
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/message"
       let req' = mkJsonReq methodPost
-            [ mkAuth $ input ^. pmAuth
+            [ mkAuth $ input ^. auth
             , ("Content-Type", "application/json")
             ] $ req
               { H.requestBody = H.RequestBodyLBS $ encode input }
       res <- liftIO $ H.httpLbs req' $ env ^. manager
+      time <- liftIO getCurrentTime
       res.responseStatus === status200
-      either fail pure $ eitherDecode res.responseBody
+      mId <- either fail pure $ eitherDecode res.responseBody
+      pure (mId, time)
 
 getUsers :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 getUsers env = Command gen exe

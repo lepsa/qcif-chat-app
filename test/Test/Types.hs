@@ -1,5 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Test.Types where
@@ -12,7 +11,7 @@ import Data.Types.User (UserId)
 import GHC.Generics
 import Data.Types.Message
     ( Message(messageBody, messageId, messageFrom, messageTo),
-      MessageId )
+      MessageId, messageSent )
 import Control.Monad.IO.Class
 import Control.Monad.Catch
 import Data.Aeson
@@ -37,7 +36,7 @@ instance TraversableB TestUser
 makeLenses ''TestUser
 
 data TestMessage v = TestMessage
-  { _tmId   :: Var MessageId v
+  { _tmId   :: Var (MessageId, UTCTime) v
   , _tmFrom :: Var UserId v
   , _tmTo   :: Var UserId v
   , _tmBody :: Text
@@ -48,15 +47,21 @@ makeLenses ''TestMessage
 
 mkTestMessage :: Message -> TestMessage Concrete
 mkTestMessage msg = TestMessage
-  (Var $ Concrete $ msg.messageId)
+  (Var $ Concrete $ (msg.messageId, msg.messageSent))
   (Var $ Concrete $ msg.messageFrom)
   (Var $ Concrete $ msg.messageTo)
   msg.messageBody
 
+data MessagesOutput = MessagesOutput
+  { _moMessages :: [Message]
+  , _moTime     :: UTCTime
+  } deriving (Eq, Ord, Show, Generic)
+makeLenses ''MessagesOutput
+
 data TestState v = TestState
   { _users :: Map (Var UserId v) (TestUser v)
   , _messages :: Map (Var UserId v) [TestMessage v]
-  , _messaegeSync :: Map (Var UserId v) (Var UTCTime v)
+  , _messageSync :: Map (Var UserId v) (Var MessagesOutput v)
   } deriving (Eq, Ord, Show, Generic)
 makeLenses ''TestState
 
@@ -75,8 +80,8 @@ instance ToJSON (RegisterUser v) where
     ]
 
 
-class HasUserId a v | a -> v where
-  userId :: Lens' a (Var UserId v)
+class HasUserId a where
+  userId :: Lens' (a v) (Var UserId v)
 
 data LoginUser v = LoginUser
   { _luId   :: Var UserId v
@@ -87,7 +92,7 @@ instance FunctorB LoginUser
 instance TraversableB LoginUser
 makeLenses ''LoginUser
 
-instance HasUserId (LoginUser v) v where
+instance HasUserId LoginUser where
   userId = luId
 
 instance ToJSON (LoginUser v) where
@@ -106,9 +111,9 @@ data Auth v
 instance FunctorB Auth
 instance TraversableB Auth
 
-class HasAuth a v | a -> v where
-  auth :: Lens' a (Auth v)
-instance HasUserId (Auth v) v where
+class HasAuth a where
+  auth :: Lens' (a v) (Auth v)
+instance HasUserId Auth where
   userId = lens (\case
       Basic uid _ -> uid
       Bearer uid _ -> uid
@@ -116,7 +121,7 @@ instance HasUserId (Auth v) v where
       Basic _ x -> Basic uid x
       Bearer _ x -> Bearer uid x
     )
-instance HasAuth (Auth v) v where
+instance HasAuth Auth where
   auth = id
 
 newtype GetAllMessages v = GetAllMessages
@@ -126,9 +131,9 @@ instance FunctorB GetAllMessages
 instance TraversableB GetAllMessages
 makeLenses ''GetAllMessages
 
-instance HasAuth (GetAllMessages v) v where
+instance HasAuth GetAllMessages where
   auth = gamAuth
-instance HasUserId (GetAllMessages v) v where
+instance HasUserId GetAllMessages where
   userId = auth . userId
 
 data PostMessage v = PostMessage
@@ -144,9 +149,9 @@ instance ToJSON (PostMessage Concrete) where
     [ "to"   .= concrete (view pmTo pm)
     , "body" .= view pmBody pm
     ]
-instance HasAuth (PostMessage v) v where
+instance HasAuth PostMessage where
   auth = pmAuth
-instance HasUserId (PostMessage v) v where
+instance HasUserId PostMessage where
   userId = auth . userId
 
 newtype GetUsers v = GetUsers
@@ -155,7 +160,19 @@ newtype GetUsers v = GetUsers
 makeLenses ''GetUsers
 instance FunctorB GetUsers
 instance TraversableB GetUsers
-instance HasAuth (GetUsers v) v where
+instance HasAuth GetUsers where
   auth = guAuth
-instance HasUserId (GetUsers v) v where
+instance HasUserId GetUsers where
+  userId = auth . userId
+
+newtype GetMessages v = GetMessages
+  { _gmAuth :: Auth v
+  } deriving (Eq, Ord, Show, Generic)
+instance FunctorB GetMessages
+instance TraversableB GetMessages
+makeLenses ''GetMessages
+
+instance HasAuth GetMessages where
+  auth = gmAuth
+instance HasUserId GetMessages where
   userId = auth . userId

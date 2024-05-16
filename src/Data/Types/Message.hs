@@ -165,7 +165,7 @@ getMessagesForUserSince uid since = do
     \from message as m \
     \join user as u1 on m.from_user = u1.id \
     \join user as u2 on m.to_user = u2.id \
-    \where m.from_user = ? and m.sent >= ?"
+    \where m.to_user = ? and m.sent >= ?"
     (uid, since)
 
 writeMessage :: CanAppM m c e => UserId -> CreateMessage -> m MessageId
