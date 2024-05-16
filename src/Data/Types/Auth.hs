@@ -28,8 +28,9 @@ instance FromBasicAuthData UserLogin where
 
 checkUserPassword :: MonadIO m => Connection -> Text -> Text -> ExceptT (AuthResult UserLogin) m UserLogin
 checkUserPassword c name pass = do
-  u :: User <- singleResult <=< liftIO $ query c "select id, name from user where name = ?" (Only name)
-  hash <- singleResult <=< liftIO $ query c "select hash from user_pass where id = ?" (Only u.userId)
+  u :: User <- singleResult <=< catchDbException
+    $ query c "select id, name from user where name = ?" (Only name)
+  hash <- singleResult <=< catchDbException $ query c "select hash from user_pass where id = ?" (Only u.userId)
   case checkPassword (mkPassword pass) hash of
     PasswordCheckFail -> throwError BadPassword
     PasswordCheckSuccess -> pure $ UserLogin u.userId u.userName

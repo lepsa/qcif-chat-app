@@ -25,6 +25,7 @@ main {
 nav {
   padding: 1rem;
   border-right: solid black 0.1rem;
+  min-width: 7rem;
 }
 
 #main-content {

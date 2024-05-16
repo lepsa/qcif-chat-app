@@ -128,12 +128,12 @@ getSyncedMessages t uid = do
 setMessageSync :: CanAppM m c e => UTCTime -> UserId -> m ()
 setMessageSync t uid = do
   c <- asks conn
-  liftIO $ execute c "insert into message_sync (time, user) values (?, ?) on conflict do update set time = ?" (t, uid, t)
+  catchDbException $ execute c "insert into message_sync (time, user) values (?, ?) on conflict do update set time = ?" (t, uid, t)
 
 getMessageSync :: CanAppM m c e => UserId -> m (Maybe MessageSync)
 getMessageSync uid = do
   c <- asks conn
-  l <- liftIO $ query c "select user, time from message_sync where user = ?" (Only uid)
+  l <- catchDbException $ query c "select user, time from message_sync where user = ?" (Only uid)
   case l of
     [] -> pure Nothing
     [sync] -> pure $ Just sync
@@ -142,7 +142,7 @@ getMessageSync uid = do
 getAllMessagesForUser :: CanAppM m c e => UserId -> m [Message]
 getAllMessagesForUser uid = do
   c <- asks conn
-  liftIO $ query c
+  catchDbException $ query c
     "select m.id, m.from_user, u1.name, m.to_user, u2.name, m.body, m.sent \
     \from message as m \
     \join user as u1 on m.from_user = u1.id \
@@ -160,7 +160,7 @@ getRecentMessagesForUser uid = do
 getMessagesForUserSince :: CanAppM m c e => UserId -> UTCTime -> m [Message]
 getMessagesForUserSince uid since = do
   c <- asks conn
-  liftIO $ query c
+  catchDbException $ query c
     "select m.id, m.from_user, u1.name, m.to_user, u2.name, m.body, m.sent \
     \from message as m \
     \join user as u1 on m.from_user = u1.id \
@@ -172,5 +172,5 @@ writeMessage :: CanAppM m c e => UserId -> CreateMessage -> m MessageId
 writeMessage from (CreateMessage to body) = do
   c <- asks conn
   mid <- MessageId <$> liftIO nextRandom
-  liftIO $ execute c "insert into message (id, from_user, to_user, body, sent) values (?, ?, ?, ?, datetime())" (mid, from, to, body)
+  catchDbException $ execute c "insert into message (id, from_user, to_user, body, sent) values (?, ?, ?, ?, datetime())" (mid, from, to, body)
   pure mid

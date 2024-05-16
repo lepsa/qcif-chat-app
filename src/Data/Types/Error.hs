@@ -3,12 +3,17 @@ module Data.Types.Error where
 import Control.Monad.Except
 import Servant.Auth.Server
 import Servant.Server hiding (BadPassword)
+import Control.Exception
+import Control.Monad.IO.Class
+import Control.Monad
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html.Renderer.Utf8 as H
 
 data AppError
   = BadAuth
   | DB DBError
   | Servant ServerError
-  deriving (Eq, Show)
+  deriving Show
 
 class AsError e a where
   fromError :: a -> e
@@ -23,7 +28,8 @@ data DBError
   | TooManyResults
   | InsertionFailure
   | Other String
-  deriving (Eq, Ord, Show)
+  | DBException SomeException
+  deriving Show
 
 instance AsError AppError DBError where
   fromError = fromError . DB
@@ -43,12 +49,6 @@ instance AsError AppError (AuthResult a) where
   fromError _ = BadAuth
   toError _ = Nothing
 
-instance AsError ServerError AppError where
-  fromError (Servant e) = e
-  fromError BadAuth = err401
-  fromError (DB _) = err500
-  toError = pure . Servant
-
 throwError_ :: (MonadError e m, AsError e e') => e' -> m a
 throwError_ = throwError . fromError
 
@@ -56,3 +56,6 @@ singleResult :: (AsError e DBError, MonadError e m) => [a] -> m a
 singleResult [] = throwError_ NotFound
 singleResult [a] = pure a
 singleResult _ = throwError_ TooManyResults
+
+catchDbException :: (MonadError e m, AsError e DBError, MonadIO m) => IO a -> m a
+catchDbException = either (throwError_ . DBException) pure <=< liftIO . try

@@ -103,6 +103,16 @@ migrateSchemaV4 =
   [ "alter table message rename column fromuser to from_user"
   ]
 
+-- Sqlite is a little picky about how it wants table alterations done, follow this guide.
+-- https://www.sqlite.org/lang_altertable.html
+migrateSchemaV5 :: [Query]
+migrateSchemaV5 =
+  [ "create table user_new(id text primary key not null, name text unique not null)"
+  , "insert into user_new select id, name from user"
+  , "drop table user"
+  , "alter table user_new rename to user"
+  ]
+
 migrations :: [(SchemaVersion, [Query])]
 migrations =
   [ (0, migrateSchemaV0)
@@ -110,4 +120,5 @@ migrations =
   , (2, migrateSchemaV2)
   , (3, migrateSchemaV3)
   , (4, migrateSchemaV4)
+  , (5, migrateSchemaV5)
   ]

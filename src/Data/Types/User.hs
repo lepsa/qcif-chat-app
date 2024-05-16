@@ -12,7 +12,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader
 import Data.Types.Env
 import Database.SQLite.Simple
-import Data.Types.Error (singleResult)
+import Data.Types.Error (singleResult, catchDbException)
 import Control.Monad
 import Data.UUID.V4 (nextRandom)
 import Data.Password.Argon2
@@ -103,18 +103,18 @@ instance FromForm Login where
 getUser :: CanAppM m c e => UserId -> m User
 getUser uid = do
   c <- asks conn
-  singleResult <=< liftIO $ query c "select id, name from user where id = ?" (Only uid)
+  singleResult <=< catchDbException $ query c "select id, name from user where id = ?" (Only uid)
 
 addUser :: CanAppM m c e => CreateUser -> m User
 addUser create = do
   c <- asks conn
   uid <- UserId <$> liftIO nextRandom
-  liftIO $ execute c "insert into user (id, name) values (?, ?)" (uid, create.createUserUser)
+  catchDbException $ execute c "insert into user (id, name) values (?, ?)" (uid, create.createUserUser)
   hash <- hashPassword $ mkPassword create.createUserPassword
-  liftIO $ execute c "insert into user_pass(id, hash) values (?, ?)" (uid, hash)
+  catchDbException $ execute c "insert into user_pass(id, hash) values (?, ?)" (uid, hash)
   pure $ User uid create.createUserUser
 
 getUsers :: CanAppM m c e => m [User]
 getUsers = do
   c <- asks conn
-  liftIO $ query_ c "select id, name from user"
+  catchDbException $ query_ c "select id, name from user"

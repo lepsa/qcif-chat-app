@@ -13,6 +13,7 @@ import Data.Html.Util
 import Data.Types.Message
 import Data.Types.Auth
 import Data.List
+import Data.Bool
 
 mkOption :: User -> H.Html
 mkOption u = H.option
@@ -56,7 +57,7 @@ displayMessage m = H.div $ H.p $ mconcat
 
 displayMessages :: Bool -> [Message] -> H.Html
 displayMessages allMsgs messages = mconcat
-    [ H.h3 "Messages"
+    [ H.h3 $ bool "Messages" "All Messages" allMsgs
     , refresh
     , if allMsgs
       then mempty

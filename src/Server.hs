@@ -40,6 +40,7 @@ import Data.Types.User (UserLogin (..))
 import qualified Data.Text as T
 import Data.Functor
 import qualified Data.Html.Message as H
+import Data.Html.Error ()
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
