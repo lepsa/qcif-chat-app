@@ -3,13 +3,19 @@ services:
     build:
       context: ./
       target: web
+      args:
+        flags: -tls
     ports:
       - "8080:8080"
     volumes:
       - ./db:/opt/website/db
+      - ./certificates:/opt/website/certificates
   test:
     build:
       context: ./
       target: test
+      args:
+        flags: -tls
     volumes:
       - ./db:/opt/website/db
+      - ./certificates:/opt/website/certificates

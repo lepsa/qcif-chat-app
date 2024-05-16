@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Main where
 
 import qualified Network.HTTP.Client     as H
@@ -10,6 +12,11 @@ import Test.StateMachine
 import Hedgehog
 import System.Directory
 
+#ifdef TLS
+import           Network.Connection      (TLSSettings (..))
+import qualified Network.HTTP.Client.TLS as H
+#endif
+
 main :: IO Bool
 main = do
   ready <- newEmptyMVar
@@ -18,9 +25,13 @@ main = do
   createDirectoryIfMissing False "./db"
   serverThread <- forkIO $ runServer onStart testTopAPI "./db/test-server.db" testTopServer port
   takeMVar ready
-
+#if defined(TLS)
+  mgr <- H.newTlsManagerWith $ H.mkManagerSettings (TLSSettingsSimple True undefined undefined) Nothing
+  let url = "https://localhost:" <> show port
+#else
   mgr <- H.newManager H.defaultManagerSettings
   let url = "http://localhost:" <> show port
+#endif
       env = TestEnv mgr url
       reset = do
         req <- H.parseRequest $ url <> "/reset"

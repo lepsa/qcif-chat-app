@@ -13,6 +13,13 @@ Run one of the following commands to run the test suite:
 - `cabal run QCIF-test`
 - `docker-compose up test --build`
 
+#### TLS
+Support for TLS is enabled via the `tls` cabal flag.
+  - `cabal build -f tls` or `cabal run -f tls QCIF`
+  - `docker-compose build --build-arg flags=tls`
+
+Create, link, or copy a TLS certificate and key file into the project `certificates` directory with the name `certificate.pem` and `key.pem`. These files aren't automatically reloaded if they change while the server is runnning.
+
 ### Storage
 Application data is being stored in a relational database, with the current version utilising SQLite.
 

@@ -13,6 +13,10 @@ build-type:         Simple
 extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
+flag tls
+    default: False
+    manual: True
+
 common warnings
     ghc-options: -Wall
 
@@ -68,6 +72,11 @@ library
                     , Data.Html.User
                     , Data.Html.Error
                     , Server
+
+    if flag(tls)
+        build-depends:
+            warp-tls
+        cpp-options: -DTLS=1
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: DataKinds
@@ -84,6 +93,10 @@ executable QCIF
                     , QCIF
     hs-source-dirs:   app
     default-language: GHC2021
+    if flag(tls)
+        build-depends:
+            warp-tls
+        cpp-options: -DTLS=1
 
 test-suite QCIF-test
     import:           warnings
@@ -110,6 +123,10 @@ test-suite QCIF-test
                     , text
                     , base64
                     , directory
+    if flag(tls)
+        build-depends:
+            warp-tls
+        cpp-options: -DTLS=1
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     default-language: GHC2021

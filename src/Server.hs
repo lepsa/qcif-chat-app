@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Server where
 
 import Data.Time (getCurrentTimeZone)
@@ -43,6 +45,10 @@ import qualified Data.Html.Message as H
 import Data.Html.Error ()
 import Servant.OpenApi
 
+#ifdef TLS
+import Network.Wai.Handler.WarpTLS
+#endif
+
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
 -- `Proxy api` and the constriants helps the type inference along, otherwise it gets confused.
@@ -78,7 +84,15 @@ runServer onStartup api dbPath serverM port = do
       warpSettings = setBeforeMainLoop onStartup
         $ setHost "*6"
         $ setPort port defaultSettings
-  runSettings warpSettings $
+#if defined(TLS)
+      tls = tlsSettings
+                (currentDirectory </> "certificates" </> "certificate.pem")
+                (currentDirectory </> "certificates" </> "key.pem")
+  runTLS tls
+#else
+  runSettings
+#endif
+    warpSettings $
     serveWithContext api cfg $
       hoistServerWithContext api
         (Proxy @'[BasicAuthCfg', CookieSettings, JWTSettings])
