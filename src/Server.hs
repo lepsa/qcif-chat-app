@@ -45,7 +45,7 @@ import qualified Data.Html.Message as H
 import Data.Html.Error ()
 import Servant.OpenApi
 
-#ifdef TLS
+#ifdef TLS_ENABLED
 import Network.Wai.Handler.WarpTLS
 #endif
 
@@ -84,7 +84,7 @@ runServer onStartup api dbPath serverM port = do
       warpSettings = setBeforeMainLoop onStartup
         $ setHost "*6"
         $ setPort port defaultSettings
-#if defined(TLS)
+#if defined(TLS_ENABLED)
       tls = tlsSettings
                 (currentDirectory </> "certificates" </> "certificate.pem")
                 (currentDirectory </> "certificates" </> "key.pem")

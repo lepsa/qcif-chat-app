@@ -12,9 +12,9 @@ import Test.StateMachine
 import Hedgehog
 import System.Directory
 
-#ifdef TLS
-import           Network.Connection      (TLSSettings (..))
-import qualified Network.HTTP.Client.TLS as H
+#ifdef TLS_ENABLED
+import Network.Connection
+import Network.HTTP.Client.TLS qualified as H
 #endif
 
 main :: IO Bool
@@ -25,7 +25,7 @@ main = do
   createDirectoryIfMissing False "./db"
   serverThread <- forkIO $ runServer onStart testTopAPI "./db/test-server.db" testTopServer port
   takeMVar ready
-#if defined(TLS)
+#if defined(TLS_ENABLED)
   mgr <- H.newTlsManagerWith $ H.mkManagerSettings (TLSSettingsSimple True undefined undefined) Nothing
   let url = "https://localhost:" <> show port
 #else

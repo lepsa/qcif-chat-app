@@ -76,7 +76,7 @@ library
     if flag(tls)
         build-depends:
             warp-tls
-        cpp-options: -DTLS=1
+        cpp-options: -DTLS_ENABLED=1
     hs-source-dirs:   src
     default-language: GHC2021
     default-extensions: DataKinds
@@ -96,7 +96,7 @@ executable QCIF
     if flag(tls)
         build-depends:
             warp-tls
-        cpp-options: -DTLS=1
+        cpp-options: -DTLS_ENABLED=1
 
 test-suite QCIF-test
     import:           warnings
@@ -124,9 +124,9 @@ test-suite QCIF-test
                     , base64
                     , directory
     if flag(tls)
-        build-depends:
-            warp-tls
-        cpp-options: -DTLS=1
+        build-depends: crypton-connection
+                     , http-client-tls
+        cpp-options: -DTLS_ENABLED=1
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     default-language: GHC2021
