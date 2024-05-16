@@ -22,4 +22,5 @@ propApiTests env reset = withTests 100 . property $ do
       , loginUser
       , getAllMessages
       , postMessage
+      , getUsers
       ]

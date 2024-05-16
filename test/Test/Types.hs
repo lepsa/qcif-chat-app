@@ -148,3 +148,14 @@ instance HasAuth (PostMessage v) v where
   auth = pmAuth
 instance HasUserId (PostMessage v) v where
   userId = auth . userId
+
+newtype GetUsers v = GetUsers
+  { _guAuth :: Auth v
+  } deriving (Eq, Ord, Show, Generic)
+makeLenses ''GetUsers
+instance FunctorB GetUsers
+instance TraversableB GetUsers
+instance HasAuth (GetUsers v) v where
+  auth = guAuth
+instance HasUserId (GetUsers v) v where
+  userId = auth . userId

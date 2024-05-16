@@ -26,6 +26,8 @@ import Test.API ()
 import Data.Time
 import Data.Maybe
 import Control.Monad
+import Data.Types.User (User)
+import Data.Types.User (User(User))
 
 genChar :: MonadGen m => m Char
 genChar = Gen.filterT isPrint Gen.ascii
@@ -111,14 +113,20 @@ requireUserAuth state input =
 
 registerUser :: forall gen m. (CanStateM gen m) => TestEnv -> Command gen m TestState
 registerUser env = Command gen exe
-  [ Update $ \state input output -> state &
+  [ Require $ \state input ->
+    let inName = input ^. ruName
+        stateNames = view tuName <$> view users state
+    in inName `notElem` stateNames,
+    Update $ \state input output -> state &
     users %~ M.insert output (TestUser (input ^. ruName) (input ^. ruPass) Nothing)
   ]
   where
     gen :: TestState v -> Maybe (gen (RegisterUser v))
-    gen _state = Just $ RegisterUser
-      <$> genName
-      <*> genPassword
+    gen state = do
+      let stateNames = view tuName <$> view users state
+      Just $ RegisterUser
+        <$> Gen.filterT (`notElem` stateNames) genName
+        <*> genPassword
     exe :: RegisterUser Concrete -> m UserId
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/register"
@@ -218,4 +226,26 @@ postMessage env = Command gen exe
       either fail pure $ eitherDecode res.responseBody
 
 getUsers :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
-getUsers = undefined
+getUsers env = Command gen exe
+  [ Require requireUserAuth
+  , Ensure $ \_old new _input output -> do
+    let modelUsers :: [(Var UserId Concrete, TestUser Concrete)]
+        modelUsers = cleanModelUser <$> M.toList (new ^. users)
+        cleanModelUser (uid, u) = (uid, u & tuPass .~ mempty & tuAuth .~ Nothing)
+        mkTestUser (User uid n) = (Var $ Concrete uid, TestUser n mempty Nothing)
+    sort modelUsers === sort (mkTestUser <$> output)
+  ]
+  where
+    gen :: TestState v -> Maybe (gen (GetUsers v))
+    gen state = if M.null $ state ^. users
+      then Nothing
+      else Just $ do
+        a <- uncurry genAuth <=< Gen.element $ M.toList $ state ^. users
+        pure $ GetUsers a
+    exe :: GetUsers Concrete -> m [User]
+    exe input = do
+      req <- H.parseRequest $ view baseUrl env <> "/users"
+      let req' = mkJsonReq methodGet [mkAuth $ input ^. auth] req
+      res <- liftIO $ H.httpLbs req' $ env ^. manager
+      res.responseStatus === status200
+      either fail pure $ eitherDecode res.responseBody
