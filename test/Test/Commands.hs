@@ -17,7 +17,7 @@ import qualified Data.ByteString as BS
 import Text.Read (readMaybe)
 import Data.Types.User (UserId(UserId))
 import Data.UUID hiding (null)
-import Data.Types.Message
+import Data.Types.Message (Message, MessageId)
 import Data.Text (Text)
 import Data.Text.Encoding.Base64
 import Data.Text.Encoding
@@ -25,6 +25,7 @@ import Data.Base64.Types
 import Test.API ()
 import Data.Time
 import Data.Maybe
+import Control.Monad
 
 genChar :: MonadGen m => m Char
 genChar = Gen.filterT isPrint Gen.ascii
@@ -88,14 +89,25 @@ mkJwtAuth jwt =
   )
 
 mkAuth :: Auth Concrete -> Header
-mkAuth (Basic u) = mkBasicAuth u
-mkAuth (Bearer j) = mkJwtAuth j
+mkAuth (Basic _ u) = mkBasicAuth u
+mkAuth (Bearer _ j) = mkJwtAuth j
 
-genAuth :: MonadGen gen => TestUser v -> gen (Auth v)
-genAuth u = Gen.choice
-  [ pure $ Basic u
-  , Gen.mapMaybeT id $ pure $ Bearer <$> view tuAuth u
-  ]
+genAuth :: MonadGen gen => Var UserId v -> TestUser v -> gen (Auth v)
+genAuth uid u = 
+  case u ^. tuAuth of
+    Nothing -> pure $ Basic uid u
+    Just jwt -> Gen.element
+      [ Basic uid u
+      , Bearer uid jwt
+      ]
+
+requireUserAuth :: (HasUserId (input v) v, HasAuth (input v) v, Ord1 v, Eq1 v) => TestState v -> input v -> Bool
+requireUserAuth state input =
+  case M.lookup (input ^. userId) $ state ^. users of
+    Nothing -> False
+    Just u -> case input ^. auth of
+      Basic _ u' -> u == u'
+      Bearer _ jwt -> pure jwt == u ^. tuAuth
 
 registerUser :: forall gen m. (CanStateM gen m) => TestEnv -> Command gen m TestState
 registerUser env = Command gen exe
@@ -120,11 +132,11 @@ registerUser env = Command gen exe
 loginUser :: forall gen m. (CanStateM gen m) => TestEnv -> Command gen m TestState
 loginUser env = Command gen exe
   [ Require $ \state input ->
-    let uid = input ^. luId
+    let uid = input ^. userId
     in maybe False (\u -> mkLoginUser uid u == input)
     $ M.lookup uid (state ^. users)
   , Update $ \state input output -> state &
-    users %~ M.update (\u -> pure $ u & tuAuth .~ Just output) (input ^. luId)
+    users %~ M.update (\u -> pure $ u & tuAuth .~ Just output) (input ^. userId)
   ]
   where
     gen :: TestState v -> Maybe (gen (LoginUser v))
@@ -143,24 +155,26 @@ loginUser env = Command gen exe
 
 getAllMessages :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 getAllMessages env = Command gen exe
-  [ Require $ \state input -> M.member (input ^. gamId) $ state ^. users 
-  , Ensure $ \_old new input output ->
-    let stateMsgs = sort $ new ^. messages . ix (input ^. gamId)
+  [ Require requireUserAuth
+  , Ensure $ \_old new input output -> do
+    let stateMsgs = sort $ new ^. messages . ix (input ^. userId)
         apiMsgs   = sort $ mkTestMessage <$> output
-     in stateMsgs === apiMsgs
+    annotate $ show new
+    stateMsgs === apiMsgs
   ]
   where
     gen :: TestState v -> Maybe (gen (GetAllMessages v))
     gen state = if M.null $ state ^. users
       then Nothing
       else Just $ do
-        (uid, u) <- Gen.element $ M.toList $ state ^. users
-        GetAllMessages uid <$> genAuth u
+        a <- uncurry genAuth <=< Gen.element $ M.toList $ state ^. users
+        pure $ GetAllMessages a
     exe :: GetAllMessages Concrete -> m [Message]
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/messages/all"
       let req' = mkJsonReq methodGet [mkAuth $ input ^. gamAuth] req
       res <- liftIO $ H.httpLbs req' $ env ^. manager
+      annotate $ show res
       res.responseStatus === status200
       either fail pure $ eitherDecode res.responseBody
 
@@ -169,12 +183,12 @@ getMessages = undefined
 
 postMessage :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 postMessage env = Command gen exe
-  [ Require $ \state input -> M.member (input ^. pmTo) (state ^. users)
+  [ Require requireUserAuth
   , Update $ \state input output -> 
     let addMessage = (
           TestMessage
             output
-            (input ^. pmFrom)
+            (input ^. userId)
             (input ^. pmTo)
             (input ^. pmBody)
           : )
@@ -185,11 +199,10 @@ postMessage env = Command gen exe
     gen state = if M.null $ state ^. users
       then Nothing
       else Just $ do
-        (fromId, u) <- Gen.element $ M.toList $ state ^. users
+        a <- uncurry genAuth <=< Gen.element $ M.toList $ state ^. users
         toId <- Gen.element $ M.keys $ state ^. users
         PostMessage
-          <$> genAuth u 
-          <*> pure fromId
+          <$> pure a
           <*> pure toId
           <*> genText
     exe :: PostMessage Concrete -> m MessageId

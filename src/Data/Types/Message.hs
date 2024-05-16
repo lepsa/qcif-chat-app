@@ -147,7 +147,7 @@ getAllMessagesForUser uid = do
     \from message as m \
     \join user as u1 on m.from_user = u1.id \
     \join user as u2 on m.to_user = u2.id \
-    \where m.from_user = ?"
+    \where m.to_user = ?"
     (Only uid)
 
 getRecentMessagesForUser :: CanAppM m c e => UserId -> m [Message]
