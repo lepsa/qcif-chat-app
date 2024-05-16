@@ -13,7 +13,7 @@ main :: IO Bool
 main = do
   ready <- newEmptyMVar
   let onStart = putMVar ready ()
-      port = 8080
+      port = 8081
   serverThread <- forkIO $ runServer onStart testTopAPI "./db/test-server.db" testTopServer port
   takeMVar ready
 
