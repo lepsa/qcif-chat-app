@@ -44,7 +44,7 @@ The HTML version of the API is following the [HATEOAS](https://en.wikipedia.org/
 OpenAPI 3 is available at `/swagger.json` when the server is running. This documentation is generated at runtime based on the type information describing the API and it's responses.
 
 The OpenAPI documentation is not an authorative specification of the API, but rather an additional tool for client developers.
-loginPass
+
 #### Authentication
 All routes expecting authentication can use any of the following methods.
 - Basic Auth
