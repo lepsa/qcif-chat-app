@@ -27,6 +27,11 @@ The HTML version of the API is following the [HATEOAS](https://en.wikipedia.org/
 
 [HTMX](https://htmx.org/) is used on browser clients to perform minimal updates to pages, and to help set cookies and XSRF tokens on requests.
 
+#### OpenAPI Documentation
+OpenAPI 3 is available at `/swagger.json` when the server is running. This documentation is generated at runtime based on the type information describing the API and it's responses.
+
+The OpenAPI documentation is not an authorative specification of the API, but rather an additional tool for client developers.
+
 #### Authentication
 All routes expecting authentication can use any of the following methods.
 - Basic Auth
