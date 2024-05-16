@@ -13,6 +13,15 @@ import Data.Password.Argon2
 import Data.Types.Error
 import Data.Text
 import Data.Aeson
+import Servant.OpenApi
+import qualified Servant.Auth
+import Servant hiding (BasicAuth, BadPassword)
+import qualified Data.Text as T
+import Data.OpenApi (SecurityScheme(..), OpenApi (_openApiComponents), _componentsSecuritySchemes, SecurityDefinitions (..), allOperations, security, SecurityRequirement (..), SecuritySchemeType (..), HttpSchemeType (..), ToSchema (declareNamedSchema))
+import Control.Lens
+import qualified Data.HashMap.Strict.InsOrd as HM
+import Data.Data
+import GHC.Generics
 
 newtype BasicAuthCfg' = BasicAuthCfg' Connection
 type instance BasicAuthCfg = BasicAuthCfg'
@@ -44,6 +53,64 @@ type Authed = AuthResult UserLogin
 data AuthedValue a = AuthedValue
   { auth :: Authed
   , value :: a
-  }
+  } deriving (Generic, Typeable)
 instance ToJSON a => ToJSON (AuthedValue a) where
   toJSON = toJSON . value
+instance ToSchema a => ToSchema (AuthedValue a) where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @a
+
+-- servant-openapi3 doesn't have default instances for auth yet.
+-- https://github.com/biocad/servant-openapi3/issues/42
+-- Copied from https://github.com/jumper149/mensam/blob/7ad040926cc388456292a33073dc44bd37a61201/server/source/library/Servant/Auth/OrphanInstances.hs
+instance (HasOpenApi api) => HasOpenApi (Servant.Auth.Auth '[] a :> api) where
+  toOpenApi Proxy = toOpenApi $ Proxy @api
+
+instance (HasOpenApi (Servant.Auth.Auth auths a :> api)) => HasOpenApi (Servant.Auth.Auth (Servant.Auth.BasicAuth : auths) a :> api) where
+  toOpenApi Proxy = addSecurity $ toOpenApi $ Proxy @(Servant.Auth.Auth auths a :> api)
+   where
+    addSecurity = addSecurityRequirement identifier . addSecurityScheme identifier securityScheme
+    identifier :: T.Text = "BasicAuth"
+    securityScheme =
+      SecurityScheme
+        { _securitySchemeType = SecuritySchemeHttp HttpSchemeBasic
+        , _securitySchemeDescription = Just "Basic Authentication"
+        }
+
+instance (HasOpenApi (Servant.Auth.Auth auths a :> api)) => HasOpenApi (Servant.Auth.Auth (Servant.Auth.JWT : auths) a :> api) where
+  toOpenApi Proxy = addSecurity $ toOpenApi $ Proxy @(Servant.Auth.Auth auths a :> api)
+   where
+    addSecurity = addSecurityRequirement identifier . addSecurityScheme identifier securityScheme
+    identifier :: T.Text = "JWT"
+    securityScheme =
+      SecurityScheme
+        { _securitySchemeType = SecuritySchemeHttp $ HttpSchemeBearer $ Just "JWT"
+        , _securitySchemeDescription = Just "Bearer Authentication"
+        }
+
+instance (HasOpenApi (Servant.Auth.Auth auths a :> api)) => HasOpenApi (Servant.Auth.Auth (Servant.Auth.Cookie : auths) a :> api) where
+  toOpenApi Proxy = addSecurity $ toOpenApi $ Proxy @(Servant.Auth.Auth auths a :> api)
+   where
+    addSecurity = addSecurityRequirement identifier . addSecurityScheme identifier securityScheme
+    identifier :: T.Text = "Cookie"
+    securityScheme =
+      SecurityScheme
+        { _securitySchemeType = SecuritySchemeHttp $ HttpSchemeBearer $ Just "JWT"
+        , _securitySchemeDescription = Just "Cookie Authentication"
+        }
+
+addSecurityScheme :: T.Text -> SecurityScheme -> OpenApi -> OpenApi
+addSecurityScheme securityIdentifier securityScheme openApi =
+  openApi
+    { _openApiComponents =
+        (_openApiComponents openApi)
+          { _componentsSecuritySchemes =
+              _componentsSecuritySchemes (_openApiComponents openApi)
+                <> SecurityDefinitions (HM.singleton securityIdentifier securityScheme)
+          }
+    }
+
+addSecurityRequirement :: T.Text -> OpenApi -> OpenApi
+addSecurityRequirement securityRequirement =
+  allOperations
+    . security
+    %~ ((SecurityRequirement $ HM.singleton securityRequirement []) :)

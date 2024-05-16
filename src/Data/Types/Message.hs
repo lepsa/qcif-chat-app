@@ -17,15 +17,20 @@ import Data.Types.Error
 import Data.Aeson
 import Web.FormUrlEncoded
 import Data.Types.Auth
+import Data.OpenApi
+import Data.Data
+import Data.Types.Util
 
 newtype MessageId = MessageId { unMessageId :: UUID }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, Typeable)
 instance FromField MessageId where
   fromField f = MessageId <$> fromField f
 instance ToField MessageId where
   toField = toField . unMessageId
 instance ToJSON MessageId where
   toJSON = toJSON . unMessageId
+instance ToSchema MessageId where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @UUID
 
 data CreateMessage = CreateMessage
   { createMessageTo   :: UserId
@@ -40,19 +45,25 @@ instance FromForm CreateMessage where
   fromForm f = CreateMessage
     <$> parseUnique "to" f
     <*> parseUnique "body" f
+instance ToSchema CreateMessage where
+  declareNamedSchema = schemaOpts "createMessage"
 
 newtype AllMessages = AllMessages
   { allMessages :: [Message]
-  }
+  } deriving (Generic, Typeable)
 instance ToJSON AllMessages where
   toJSON (AllMessages l) = toJSON l
+instance ToSchema AllMessages where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @[Message]
 
 data AuthedMessage = AuthedMessage
   { auth :: Authed
   , message :: Message
-  }
+  } deriving (Generic, Typeable)
 instance ToJSON AuthedMessage where
   toJSON m = toJSON m.message
+instance ToSchema AuthedMessage where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @Message
 
 data DbMessage = DbMessage
   { dbMessageId   :: MessageId
@@ -78,7 +89,9 @@ data Message = Message
   , messageToName   :: Text
   , messageBody     :: Text
   , messageSent     :: UTCTime
-  } deriving (Eq, Ord, Show, Generic)
+  } deriving (Eq, Ord, Show, Generic, Typeable)
+instance ToSchema Message where
+  declareNamedSchema = schemaOpts "message"
 
 instance ToJSON Message where
   toJSON m = object
@@ -102,7 +115,9 @@ instance FromRow Message where
     <*> field
 
 newtype MessagePosted = MessagePosted MessageId
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic, Typeable)
+instance ToSchema MessagePosted where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @MessageId
 
 instance ToJSON MessagePosted where
   toJSON (MessagePosted mid) = toJSON mid

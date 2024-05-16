@@ -43,6 +43,9 @@ library
                     , http-api-data
                     , filepath
                     , directory
+                    , servant-openapi3
+                    , openapi3
+                    , insert-ordered-containers
     exposed-modules:  Data.Types
                     , Data.Types.API
                     , Data.Types.User
@@ -52,6 +55,7 @@ library
                     , Data.Types.Message
                     , Data.Types.Orphans
                     , Data.Types.Auth
+                    , Data.Types.Util
                     , Data.DB
                     , Data.DB.Schema
                     , Data.Html

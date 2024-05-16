@@ -19,13 +19,16 @@ import Data.Password.Argon2
 import Servant.Auth.JWT
 import Servant (FromHttpApiData (parseQueryParam))
 import Web.FormUrlEncoded
+import Data.OpenApi
+import Data.Types.Util
+import Data.Data
 
 -- What we include in JWTs. Make it as small as possible,
 -- and don't store anything that can change between requests.
 data UserLogin = UserLogin
   { userLoginId :: UserId
   , userLoginName :: Text
-  } deriving (Eq, Ord, Show, Generic)
+  } deriving (Eq, Ord, Show, Generic, Typeable)
 instance ToJSON UserLogin where
   toJSON u = object
     [ ("id" .= u.userLoginId)
@@ -37,9 +40,11 @@ instance FromJSON UserLogin where
     <*> o .: "name"
 instance ToJWT UserLogin
 instance FromJWT UserLogin
+instance ToSchema UserLogin where
+  declareNamedSchema = schemaOpts "userLogin"
 
 newtype UserId = UserId { unUserId :: UUID }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, Typeable)
 instance FromHttpApiData UserId where
   parseQueryParam t = UserId <$> parseQueryParam t
 instance FromField UserId where
@@ -51,11 +56,13 @@ instance ToJSON UserId where
   toJSON = toJSON . unUserId
 instance FromJSON UserId where
   parseJSON v = UserId <$> parseJSON v
+instance ToSchema UserId where
+  declareNamedSchema _ = declareNamedSchema $ Proxy @UUID
 
 data User = User
   { userId :: UserId
   , userName :: Text
-  } deriving (Eq, Ord, Show, Generic)
+  } deriving (Eq, Ord, Show, Generic, Typeable)
 
 instance FromRow User where
   fromRow = User <$> field <*> field
@@ -71,10 +78,13 @@ instance FromJSON User where
     <$> o .: "id"
     <*> o .: "name"
 
+instance ToSchema User where
+  declareNamedSchema = schemaOpts "user"
+
 data CreateUser = CreateUser
   { createUserUser :: Text
   , createUserPassword :: Text
-  } deriving (Eq, Ord, Generic)
+  } deriving (Eq, Ord, Generic, Typeable)
 
 instance FromForm CreateUser where
   fromForm f = CreateUser
@@ -86,10 +96,13 @@ instance FromJSON CreateUser where
     <$> o .: "user"
     <*> o .: "password"
 
+instance ToSchema CreateUser where
+  declareNamedSchema = schemaOpts "createUser"
+
 data Login = Login
   { loginUser :: Text
-  , loginPass :: Text
-  }
+  , loginPassword :: Text
+  } deriving (Generic, Typeable)
 instance FromJSON Login where
   parseJSON = withObject "Login" $ \o -> Login
     <$> o .: "user"
@@ -99,6 +112,9 @@ instance FromForm Login where
   fromForm f = Login
     <$> parseUnique "user" f
     <*> parseUnique "password" f
+
+instance ToSchema Login where
+  declareNamedSchema = schemaOpts "login"
 
 getUser :: CanAppM m c e => UserId -> m User
 getUser uid = do

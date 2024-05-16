@@ -9,6 +9,7 @@ import Text.Blaze ()
 import Data.Text
 import Data.Types.Message
 import Data.Types.Auth
+import Data.OpenApi (OpenApi)
 
 -- Set-Cookie is here twice, as both JWT and XSRF cookies are sent.
 type SetLoginCookies a = Headers
@@ -25,6 +26,7 @@ type TopAPI =
   -- Make sure that auth is checked when calling main api routes.
   -- Not all routes require the user to be authed, but most do.
     AuthLogin :> MainAPI
+  :<|> "swagger.json" :> Get '[JSON] OpenApi
   -- This serves css, js, icons, etc.
   -- WARNING: Anything in the static directory
   -- will be publically exposed.

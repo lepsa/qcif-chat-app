@@ -6,8 +6,6 @@ import Servant.Server hiding (BadPassword)
 import Control.Exception
 import Control.Monad.IO.Class
 import Control.Monad
-import qualified Text.Blaze.Html5 as H
-import qualified Text.Blaze.Html.Renderer.Utf8 as H
 
 data AppError
   = BadAuth

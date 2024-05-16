@@ -6,6 +6,8 @@ import qualified Text.Blaze.Html5 as H
 import Servant.Auth.Server
 import Text.Blaze
 import Data.Types.Auth
+import Data.OpenApi
+import Control.Lens
 
 whenLoggedIn :: Authed -> (UserLogin -> H.Html) -> H.Html
 whenLoggedIn (Authenticated u) f = f u
@@ -50,3 +52,8 @@ hxConfirm = customAttribute "hx-confirm"
 
 instance ToMarkup () where
   toMarkup _ = mempty
+
+instance ToSchema H.Html where
+  declareNamedSchema _ = do
+    pure $ NamedSchema (Just "HTML") $ mempty
+      & type_ ?~ OpenApiString

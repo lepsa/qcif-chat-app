@@ -41,6 +41,7 @@ import qualified Data.Text as T
 import Data.Functor
 import qualified Data.Html.Message as H
 import Data.Html.Error ()
+import Servant.OpenApi
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -112,6 +113,7 @@ getJwtKey conf = do
 server :: CookieSettings -> JWTSettings -> FilePath -> ServerT TopAPI (AppM IO Env AppError)
 server cookieSettings jwtSettings currentDirectory =
     mainServer cookieSettings jwtSettings
+      :<|> pure (toOpenApi $ Proxy @(AuthLogin :> MainAPI))
       :<|> serveDirectoryWebApp (currentDirectory </> "static")
     
 mainServer :: CookieSettings -> JWTSettings -> Authed -> ServerT MainAPI (AppM IO Env AppError)
@@ -141,7 +143,7 @@ coreServer cookieSettings jwtSettings a =
     getUsers _user = AuthedValue a <$> U.getUsers
     login l = do
       c <- asks conn
-      user <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
+      user <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPassword
       mApplyCookies <- liftIO $ acceptLogin cookieSettings jwtSettings user
       case mApplyCookies of
         Nothing -> throwError_ $ Other "Could not apply login cookies"
