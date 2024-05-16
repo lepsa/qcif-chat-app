@@ -8,12 +8,14 @@ import Test.API
 import Test.Types
 import Test.StateMachine
 import Hedgehog
+import System.Directory
 
 main :: IO Bool
 main = do
   ready <- newEmptyMVar
   let onStart = putMVar ready ()
       port = 8081
+  createDirectoryIfMissing False "./db"
   serverThread <- forkIO $ runServer onStart testTopAPI "./db/test-server.db" testTopServer port
   takeMVar ready
 

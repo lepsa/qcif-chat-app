@@ -80,6 +80,7 @@ executable QCIF
     -- other-modules:
     -- other-extensions:
     build-depends:    base
+                    , directory
                     , QCIF
     hs-source-dirs:   app
     default-language: GHC2021
@@ -108,6 +109,7 @@ test-suite QCIF-test
                     , time
                     , text
                     , base64
+                    , directory
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     default-language: GHC2021

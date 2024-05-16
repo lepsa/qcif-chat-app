@@ -16,6 +16,8 @@ Run one of the following commands to run the test suite:
 ### Storage
 Application data is being stored in a relational database, with the current version utilising SQLite.
 
+The databases for both the server and testing server are stored in a directory called `db` under the project root. This directory is also used by the `docker-compose.yaml` file to map existing databases into the docker containers as a volume.
+
 SQLite was chosen for several reasons for this project:
   - No database management outside of the application server.
   - Similar data model and commands between both SQLite and PostgreSQL, SQLite's type system notwithstanding. 
