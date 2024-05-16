@@ -31,7 +31,6 @@ import Data.Time (getCurrentTime)
 import Text.Blaze ()
 import Control.Monad.Trans.Except
 import Data.Html.Root
-import Data.Html.Message
 import System.Directory
 import System.FilePath
 import qualified Data.Html.Login as H
@@ -40,6 +39,7 @@ import qualified Data.Html.User ()
 import Data.Types.User (UserLogin (..))
 import qualified Data.Text as T
 import Data.Functor
+import qualified Data.Html.Message as H
 
 -- Server runner.
 -- The initial IO action is useful in tests to indicate when the server is stable.
@@ -110,11 +110,34 @@ getJwtKey conf = do
 
 server :: CookieSettings -> JWTSettings -> FilePath -> ServerT TopAPI (AppM IO Env AppError)
 server cookieSettings jwtSettings currentDirectory =
-    mainServer
-      :<|> loginServer
+    mainServer cookieSettings jwtSettings
       :<|> serveDirectoryWebApp (currentDirectory </> "static")
+    
+mainServer :: CookieSettings -> JWTSettings -> Authed -> ServerT MainAPI (AppM IO Env AppError)
+mainServer cookieSettings jwtSettings auth = htmlServer auth :<|> coreServer cookieSettings jwtSettings auth
+
+htmlServer :: Authed -> ServerT HtmlAPI (AppM IO Env AppError)
+htmlServer auth =
+       pure (root auth)
+  :<|> pure (H.login auth)
+  :<|> pure (H.register auth)
+  :<|> protected auth (\userLogin -> H.newMessage auth userLogin <$> U.getUsers)
+
+coreServer :: CookieSettings -> JWTSettings -> Authed -> ServerT CoreAPI (AppM IO Env AppError)
+coreServer cookieSettings jwtSettings a =
+       login
+  :<|> register
+  :<|> protected a getMessages
+  :<|> protected a getAllMessages
+  :<|> protected a . flip postMessage
+  :<|> protected a getUsers
   where
-    loginServer = login :<|> register
+    getMessages user = do
+      t <- liftIO getCurrentTime
+      AuthedValue a <$> getSyncedMessages t user.userLoginId
+    getAllMessages user = AuthedValue a . AllMessages <$> getAllMessagesForUser user.userLoginId
+    postMessage user msg = MessagePosted <$> writeMessage user.userLoginId msg
+    getUsers _user = AuthedValue a <$> U.getUsers
     login l = do
       c <- asks conn
       user <- either throwError_ pure <=< runExceptT $ checkUserPassword c l.loginUser l.loginPass
@@ -135,26 +158,9 @@ server cookieSettings jwtSettings currentDirectory =
           $ addHeader (linkText $ Proxy @(AuthLogin :> GetRoot))
           $ addHeader (T.pack $ show user.userLoginId.unUserId) ()
 
-mainServer :: Authed -> ServerT MainAPI (AppM IO Env AppError)
-mainServer auth = htmlServer auth :<|> coreServer auth
-
-htmlServer :: Authed -> ServerT HtmlAPI (AppM IO Env AppError)
-htmlServer auth = root auth:<|> H.login auth :<|> H.register auth :<|> newMessage auth 
-
-coreServer :: Authed -> ServerT CoreAPI (AppM IO Env AppError)
-coreServer a@(Authenticated user) =
-       getMessages
-  :<|> getAllMessages
-  :<|> postMessage
-  :<|> getUsers
-  where
-    getMessages = do
-      t <- liftIO getCurrentTime
-      AuthedValue a <$> getSyncedMessages t user.userLoginId
-    getAllMessages = AuthedValue a . AllMessages <$> getAllMessagesForUser user.userLoginId
-    postMessage msg = MessagePosted <$ writeMessage user.userLoginId msg
-    getUsers = AuthedValue a <$> U.getUsers
-coreServer _ = hoistServer (Proxy @CoreAPI) serverNat $ throwAll err401
+protected :: Authed -> (UserLogin -> AppM IO Env AppError a) -> AppM IO Env AppError a
+protected (Authenticated user) f = f user
+protected _ _ = throwError_ BadAuth
 
 serverNat :: AsError e' e => AppM IO Env e a -> AppM IO Env e' a
 serverNat n = do

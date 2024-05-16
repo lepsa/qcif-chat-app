@@ -1,0 +1,8 @@
+digraph Server {
+  DB -> "Content Management";
+  "Content Management" -> DB;
+  "Content Management" -> "Content Rendering";
+  "Content Management" -> API;
+  API -> "Content Management";
+  "Content Rendering" -> API;
+}

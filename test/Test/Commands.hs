@@ -16,13 +16,15 @@ import Data.Char (isPrint)
 import qualified Data.ByteString as BS
 import Text.Read (readMaybe)
 import Data.Types.User (UserId(UserId))
-import Data.UUID
+import Data.UUID hiding (null)
 import Data.Types.Message
 import Data.Text (Text)
 import Data.Text.Encoding.Base64
 import Data.Text.Encoding
 import Data.Base64.Types
 import Test.API ()
+import Data.Time
+import Data.Maybe
 
 genChar :: MonadGen m => m Char
 genChar = Gen.filterT isPrint Gen.ascii
@@ -34,8 +36,11 @@ textRange = Range.linear 1 10
 genName :: MonadGen m => m Text
 genName = Gen.text textRange $ Gen.filterT (/= ':') genChar
 
+genText :: MonadGen m => m Text
+genText = Gen.text textRange genChar
+
 genPassword :: MonadGen m => m Text
-genPassword = Gen.text textRange genChar
+genPassword = genText
 
 extractId :: MonadFail m => H.Response body -> m UUID
 extractId = maybe
@@ -86,6 +91,12 @@ mkAuth :: Auth Concrete -> Header
 mkAuth (Basic u) = mkBasicAuth u
 mkAuth (Bearer j) = mkJwtAuth j
 
+genAuth :: MonadGen gen => TestUser v -> gen (Auth v)
+genAuth u = Gen.choice
+  [ pure $ Basic u
+  , Gen.mapMaybeT id $ pure $ Bearer <$> view tuAuth u
+  ]
+
 registerUser :: forall gen m. (CanStateM gen m) => TestEnv -> Command gen m TestState
 registerUser env = Command gen exe
   [ Update $ \state input output -> state &
@@ -108,16 +119,18 @@ registerUser env = Command gen exe
 
 loginUser :: forall gen m. (CanStateM gen m) => TestEnv -> Command gen m TestState
 loginUser env = Command gen exe
-  [ Update $ \state input output -> state &
+  [ Require $ \state input ->
+    let uid = input ^. luId
+    in maybe False (\u -> mkLoginUser uid u == input)
+    $ M.lookup uid (state ^. users)
+  , Update $ \state input output -> state &
     users %~ M.update (\u -> pure $ u & tuAuth .~ Just output) (input ^. luId)
   ]
   where
     gen :: TestState v -> Maybe (gen (LoginUser v))
     gen state = if M.null $ state ^. users 
       then Nothing
-      else Just $ do
-        (uid, u) <- Gen.element $ M.toList $ state ^. users
-        pure $ LoginUser uid (u ^. tuName) (u ^. tuPass)
+      else Just $ uncurry mkLoginUser <$> Gen.element (M.toList $ state ^. users)
     exe :: LoginUser Concrete -> m String
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/login"
@@ -142,11 +155,7 @@ getAllMessages env = Command gen exe
       then Nothing
       else Just $ do
         (uid, u) <- Gen.element $ M.toList $ state ^. users
-        auth <- Gen.choice
-          [ pure $ Basic u
-          , Gen.mapMaybeT id $ pure $ Bearer <$> view tuAuth u
-          ]
-        pure $ GetAllMessages uid auth
+        GetAllMessages uid <$> genAuth u
     exe :: GetAllMessages Concrete -> m [Message]
     exe input = do
       req <- H.parseRequest $ view baseUrl env <> "/messages/all"
@@ -159,7 +168,41 @@ getMessages :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestSta
 getMessages = undefined
 
 postMessage :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
-postMessage = undefined
+postMessage env = Command gen exe
+  [ Require $ \state input -> M.member (input ^. pmTo) (state ^. users)
+  , Update $ \state input output -> 
+    let addMessage = (
+          TestMessage
+            output
+            (input ^. pmFrom)
+            (input ^. pmTo)
+            (input ^. pmBody)
+          : )
+    in state & messages %~ M.alter (pure . addMessage . fromMaybe []) (input ^. pmTo) 
+  ]
+  where
+    gen :: TestState v -> Maybe (gen (PostMessage v))
+    gen state = if M.null $ state ^. users
+      then Nothing
+      else Just $ do
+        (fromId, u) <- Gen.element $ M.toList $ state ^. users
+        toId <- Gen.element $ M.keys $ state ^. users
+        PostMessage
+          <$> genAuth u 
+          <*> pure fromId
+          <*> pure toId
+          <*> genText
+    exe :: PostMessage Concrete -> m MessageId
+    exe input = do
+      req <- H.parseRequest $ view baseUrl env <> "/message"
+      let req' = mkJsonReq methodPost
+            [ mkAuth $ input ^. pmAuth
+            , ("Content-Type", "application/json")
+            ] $ req
+              { H.requestBody = H.RequestBodyLBS $ encode input }
+      res <- liftIO $ H.httpLbs req' $ env ^. manager
+      res.responseStatus === status200
+      either fail pure $ eitherDecode res.responseBody
 
 getUsers :: forall gen m. CanStateM gen m => TestEnv -> Command gen m TestState
 getUsers = undefined

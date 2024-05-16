@@ -16,7 +16,6 @@ import Database.SQLite.Simple.ToField
 import Data.Types.Error
 import Data.Aeson
 import Web.FormUrlEncoded
-import Data.Aeson.Types (emptyObject)
 import Data.Types.Auth
 
 newtype MessageId = MessageId { unMessageId :: UUID }
@@ -102,11 +101,11 @@ instance FromRow Message where
     <*> field
     <*> field
 
-data MessagePosted = MessagePosted
+newtype MessagePosted = MessagePosted MessageId
   deriving (Eq, Ord, Show)
 
 instance ToJSON MessagePosted where
-  toJSON _ = emptyObject
+  toJSON (MessagePosted mid) = toJSON mid
 
 -- Store the last time a user requested their messages.
 data MessageSync = MessageSync

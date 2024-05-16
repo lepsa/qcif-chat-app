@@ -2,7 +2,6 @@
 module Data.Html.Message where
 
 import Data.Types.API
-import Data.Types.AppM
 import qualified Text.Blaze.Html as H
 import Data.Types.User
 import Servant
@@ -10,8 +9,6 @@ import qualified Text.Blaze.Html5 as H
 import Text.Blaze
 import qualified Text.Blaze.Html5.Attributes as HA
 import Data.Html.Page (basePage)
-import Servant.Auth.Server (AuthResult(Authenticated))
-import Data.Types.Error
 import Data.Html.Util
 import Data.Types.Message
 import Data.Types.Auth
@@ -22,30 +19,29 @@ mkOption u = H.option
   ! HA.value (stringValue . show $ unUserId u.userId)
   $ H.toHtml u.userName
 
-newMessage :: CanAppM m c e => Authed -> m H.Html
-newMessage auth@(Authenticated user) = do
-  users <- filter (\u -> u.userId /= user.userLoginId) <$> getUsers
-  pure $ basePage auth $ mconcat
-    [ H.h3 "New Message"
-    , H.form
-      ! HA.method "POST"
-      ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostMessageApi)))
-      ! hxBoost
-      ! hxOn "::config-request" "setXsrfHeader(event)"
-      ! hxTarget "this"
-      ! hxSwap "outerHTML"
-      $ mconcat
-      [ H.label ! HA.for "to" $ "To"
-      , H.select ! HA.name "to" $ mconcat $
-        mkOption <$> sortBy (\a b -> compare a.userName b.userName) users
-      , H.br
-      , H.label ! HA.for "body" $ "Body"
-      , H.input ! HA.name "body" ! HA.type_ "text"
-      , H.br
-      , H.input ! HA.type_ "submit" ! HA.value "Send"
-      ]
+newMessage :: Authed -> UserLogin -> [User] -> H.Html
+newMessage auth user users = basePage auth $ mconcat
+  [ H.h3 "New Message"
+  , H.form
+    ! HA.method "POST"
+    ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostMessageApi)))
+    ! hxBoost
+    ! hxOn "::config-request" "setXsrfHeader(event)"
+    ! hxTarget "this"
+    ! hxSwap "outerHTML"
+    $ mconcat
+    [ H.label ! HA.for "to" $ "To"
+    , H.select ! HA.name "to" $ mconcat $
+      mkOption <$> sortBy (\a b -> compare a.userName b.userName) filteredUsers
+    , H.br
+    , H.label ! HA.for "body" $ "Body"
+    , H.input ! HA.name "body" ! HA.type_ "text"
+    , H.br
+    , H.input ! HA.type_ "submit" ! HA.value "Send"
     ]
-newMessage _ = throwError_ BadAuth
+  ]
+  where
+    filteredUsers = filter (\u -> u.userId /= user.userLoginId) users
 
 displayMessage :: Message -> H.Html
 displayMessage m = H.div $ H.p $ mconcat

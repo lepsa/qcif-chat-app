@@ -7,15 +7,15 @@ import Data.Html.Page
 import qualified Text.Blaze.Html5.Attributes as HA
 import qualified Text.Blaze.Html5 as H
 import Text.Blaze.Html
-import Data.Types.AppM
 import Data.Types.Auth
+import Servant
 
-login :: CanAppM m c e => Authed -> m H.Html
-login auth = pure $ basePage auth $ mconcat
+login :: Authed -> H.Html
+login auth = basePage auth $ mconcat
   [ H.h3 "Login"
   , H.form
     ! HA.method "POST"
-    ! HA.action (textValue $ linkText (Proxy @PostLogin))
+    ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostLogin)))
     $ mconcat
     [ H.label ! HA.for "user" $ "Username"
     , H.input ! HA.name "user" ! HA.type_ "text"

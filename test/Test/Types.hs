@@ -13,7 +13,6 @@ import Control.Monad.IO.Class
 import Control.Monad.Catch
 import Data.Aeson
 import Data.Time
-import qualified Data.Text as T
 import Data.Text (Text)
 
 type CanStateM gen m = (MonadGen gen, MonadFail m, MonadThrow m, MonadIO m, MonadTest m)
@@ -34,9 +33,10 @@ instance TraversableB TestUser
 makeLenses ''TestUser
 
 data TestMessage v = TestMessage
-  { _tmFrom :: Var UserId v
+  { _tmId   :: Var MessageId v
+  , _tmFrom :: Var UserId v
   , _tmTo   :: Var UserId v
-  , _tmBody :: String
+  , _tmBody :: Text
   } deriving (Eq, Ord, Show, Generic)
 instance FunctorB TestMessage
 instance TraversableB TestMessage
@@ -44,9 +44,10 @@ makeLenses ''TestMessage
 
 mkTestMessage :: Message -> TestMessage Concrete
 mkTestMessage msg = TestMessage
+  (Var $ Concrete $ msg.messageId)
   (Var $ Concrete $ msg.messageFrom)
   (Var $ Concrete $ msg.messageTo)
-  (T.unpack msg.messageBody)
+  msg.messageBody
 
 data TestState v = TestState
   { _users :: Map (Var UserId v) (TestUser v)
@@ -84,6 +85,9 @@ instance ToJSON (LoginUser v) where
     , "password" .= view luPass l
     ]
 
+mkLoginUser :: Var UserId v -> TestUser v -> LoginUser v
+mkLoginUser uid u = LoginUser uid (u ^. tuName) (u ^. tuPass)
+
 data Auth v
   = Basic (TestUser v)
   | Bearer (Var String v)
@@ -98,3 +102,18 @@ data GetAllMessages v = GetAllMessages
 instance FunctorB GetAllMessages
 instance TraversableB GetAllMessages
 makeLenses ''GetAllMessages
+
+data PostMessage v = PostMessage
+  { _pmAuth :: Auth v
+  , _pmFrom :: Var UserId v
+  , _pmTo   :: Var UserId v
+  , _pmBody :: Text
+  } deriving (Eq, Ord, Show, Generic)
+instance FunctorB PostMessage
+instance TraversableB PostMessage
+makeLenses ''PostMessage
+instance ToJSON (PostMessage Concrete) where
+  toJSON pm = object
+    [ "to"   .= concrete (view pmTo pm)
+    , "body" .= view pmBody pm
+    ]

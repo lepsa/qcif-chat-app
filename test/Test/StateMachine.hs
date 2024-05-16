@@ -19,4 +19,7 @@ propApiTests env reset = withTests 100 . property $ do
   where
     commands = ($ env) <$>
       [ registerUser
+      , loginUser
+      , getAllMessages
+      , postMessage
       ]

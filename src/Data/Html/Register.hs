@@ -8,13 +8,14 @@ import Text.Blaze.Html
 import qualified Text.Blaze.Html5.Attributes as HA
 import Data.Data
 import Data.Types.Auth
+import Servant
 
-register :: CanAppM m c e => Authed -> m H.Html
-register auth = pure $ basePage auth $ mconcat
+register :: Authed -> H.Html
+register auth = basePage auth $ mconcat
   [ H.h3 "Register a New User"
   , H.form
     ! HA.method "POST"
-    ! HA.action (textValue $ linkText (Proxy @PostRegister))
+    ! HA.action (textValue $ linkText (Proxy @(AuthLogin :> PostRegister)))
     $ mconcat
     [ H.label ! HA.for "user" $ "Username"
     , H.input ! HA.name "user" ! HA.type_ "text"
