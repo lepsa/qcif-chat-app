@@ -1,0 +1,15 @@
+services:
+  web:
+    build:
+      context: ./
+      target: web
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./db:/opt/website/db
+  test:
+    build:
+      context: ./
+      target: test
+    volumes:
+      - ./db:/opt/website/db

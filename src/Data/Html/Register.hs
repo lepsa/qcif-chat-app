@@ -2,7 +2,6 @@ module Data.Html.Register where
 
 import Data.Types.API
 import qualified Text.Blaze.Html5 as H
-import Data.Types.AppM
 import Data.Html.Page
 import Text.Blaze.Html
 import qualified Text.Blaze.Html5.Attributes as HA

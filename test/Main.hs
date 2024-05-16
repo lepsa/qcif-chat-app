@@ -14,7 +14,7 @@ main = do
   ready <- newEmptyMVar
   let onStart = putMVar ready ()
       port = 8080
-  serverThread <- forkIO $ runServer onStart testTopAPI "test-server.db" testTopServer port
+  serverThread <- forkIO $ runServer onStart testTopAPI "./db/test-server.db" testTopServer port
   takeMVar ready
 
   mgr <- H.newManager H.defaultManagerSettings

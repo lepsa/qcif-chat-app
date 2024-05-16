@@ -11,6 +11,10 @@ whenLoggedIn :: Authed -> (UserLogin -> H.Html) -> H.Html
 whenLoggedIn (Authenticated u) f = f u
 whenLoggedIn _ _ = mempty
 
+whenNotLoggedIn :: Authed -> H.Html -> H.Html
+whenNotLoggedIn (Authenticated _) _ = mempty
+whenNotLoggedIn _ h = h
+
 hxBoost :: H.Attribute
 hxBoost = customAttribute "hx-boost" "true"
 
